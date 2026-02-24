@@ -1,0 +1,155 @@
+.table-container {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    padding: 1.5rem;
+}
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.table-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #e2e8f0;
+    margin: 0;
+}
+
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-icon {
+    position: absolute;
+    left: 12px;
+    color: #64748b;
+    pointer-events: none;
+}
+
+.search-input {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: #e2e8f0;
+    padding: 0.6rem 0.8rem 0.6rem 2.25rem;
+    font-size: 0.85rem;
+    width: 260px;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-input:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+}
+
+.search-input::placeholder {
+    color: #475569;
+}
+
+.table-scroll {
+    overflow-x: auto;
+}
+
+.log-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.log-table th {
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.log-table td {
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    color: #cbd5e1;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.table-row {
+    transition: background 0.15s ease;
+}
+
+.table-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.td-timestamp {
+    color: #94a3b8;
+    white-space: nowrap;
+    font-size: 0.8rem;
+}
+
+.model-badge {
+    background: rgba(96, 165, 250, 0.15);
+    color: #60a5fa;
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.td-prompt {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #94a3b8;
+}
+
+.td-tokens {
+    white-space: nowrap;
+}
+
+.token-in {
+    color: #34d399;
+    font-weight: 500;
+}
+
+.token-divider {
+    color: #475569;
+    margin: 0 2px;
+}
+
+.token-out {
+    color: #fbbf24;
+    font-weight: 500;
+}
+
+.td-latency {
+    color: #f0abfc;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.td-cost {
+    color: #34d399;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    white-space: nowrap;
+}
+
+.table-empty {
+    text-align: center;
+    color: #64748b;
+    padding: 2rem 0 !important;
+}
