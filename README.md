@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">⚡ runetrace</h1>
+  <h1 align="center">⚡ Runetrace</h1>
   <p align="center"><strong>Free, serverless LLM observability — for exactly $0.00/month.</strong></p>
   <p align="center">
     <em>"Because you shouldn't need a $500/month tool to know what your AI is doing."</em>
