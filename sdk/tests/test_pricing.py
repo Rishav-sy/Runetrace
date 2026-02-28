@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock
 from runetrace.pricing import get_cost, PRICING
 from runetrace.tracker import (
     _extract_info, _send_with_retry, _BatchQueue,
-    _capture_prompt, _build_payload, configure, track_llm, flush
+    _capture_prompt, _build_payload, configure, track_llm, track_llm_async, flush
 )
 
 
@@ -169,3 +169,71 @@ class TestPayload:
         assert payload["function_name"] == "my_func"
         assert payload["latency_ms"] == 123.45
         assert payload["cost"] == 0.005
+
+# ── Decorator Tests ─────────────────────────────────
+
+import asyncio
+
+class TestDecorators:
+    def setup_method(self):
+        configure(api_url="http://test.com", api_key="secret-key", project_id="test-proj")
+        
+        # Reset queue for clean tests
+        from runetrace.tracker import _BatchQueue
+        _BatchQueue.instance()._queue.clear()
+
+    def test_track_llm_success(self):
+        mock_response = MagicMock()
+        mock_response.model = "gpt-4o"
+        mock_response.usage.prompt_tokens = 10
+        mock_response.usage.completion_tokens = 5
+        # mimic OpenAI object
+        del mock_response.usage.input_tokens
+        
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Sync test response"
+        mock_response.choices = [mock_choice]
+
+        @track_llm
+        def dummy_call(prompt):
+            return mock_response
+
+        res = dummy_call("test")
+        assert res == mock_response
+        
+        # flush to ensure it gets processed
+        flush()
+
+    def test_track_llm_exception(self):
+        @track_llm
+        def failing_call():
+            raise ValueError("Something broke")
+
+        try:
+            failing_call()
+        except ValueError:
+            pass
+
+        # Should log an error
+        flush()
+
+    @pytest.mark.asyncio
+    async def test_track_llm_async_success(self):
+        mock_response = MagicMock()
+        mock_response.model = "claude-3-opus"
+        mock_response.usage.input_tokens = 100
+        mock_response.usage.output_tokens = 200
+        
+        mock_content = MagicMock()
+        mock_content.text = "Async test response"
+        mock_response.content = [mock_content]
+
+        @track_llm_async
+        async def dummy_async_call(prompt):
+            await asyncio.sleep(0.01)
+            return mock_response
+
+        res = await dummy_async_call("test")
+        assert res == mock_response
+        
+        flush()

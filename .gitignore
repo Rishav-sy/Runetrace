@@ -32,3 +32,15 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Internal Dev/Scratch Files
+scripts/
+tests/
+test_*.py
+*test*.py
+GEMINI.md
+REDESIGN_PROMPT.md
+walkthrough.md
+scratch.py
+*.log
+.pytest_cache/

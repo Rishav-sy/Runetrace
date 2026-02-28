@@ -1,22 +1,20 @@
-import './Skeleton.css';
-
 export function SkeletonCard() {
   return (
-    <div className="skeleton-card">
-      <div className="skeleton-line skeleton-short" />
-      <div className="skeleton-line skeleton-large" />
-      <div className="skeleton-line skeleton-medium" />
+    <div className="skel-card">
+      <div className="skel skel-line-sm" />
+      <div className="skel skel-line-lg" />
+      <div className="skel skel-line-md" />
     </div>
   );
 }
 
 export function SkeletonChart() {
   return (
-    <div className="skeleton-chart">
-      <div className="skeleton-line skeleton-short" />
-      <div className="skeleton-bars">
-        {[70, 50, 35, 20, 15].map((h, i) => (
-          <div key={i} className="skeleton-bar" style={{ height: `${h}%` }} />
+    <div className="skel-chart">
+      <div className="skel skel-line-sm" />
+      <div className="skel-bars">
+        {[65, 45, 30, 20, 12].map((h, i) => (
+          <div key={i} className="skel" style={{ height: `${h}%` }} />
         ))}
       </div>
     </div>
@@ -25,15 +23,15 @@ export function SkeletonChart() {
 
 export function SkeletonTable() {
   return (
-    <div className="skeleton-table">
-      <div className="skeleton-line skeleton-short" />
-      {[...Array(5)].map((_, i) => (
-        <div key={i} className="skeleton-row">
-          <div className="skeleton-line skeleton-cell" />
-          <div className="skeleton-line skeleton-cell-sm" />
-          <div className="skeleton-line skeleton-cell-lg" />
-          <div className="skeleton-line skeleton-cell-sm" />
-          <div className="skeleton-line skeleton-cell-sm" />
+    <div className="skel-chart" style={{ marginTop: 12 }}>
+      <div className="skel skel-line-sm" />
+      {[...Array(6)].map((_, i) => (
+        <div key={i} className="skel-row">
+          <div className="skel skel-cell-sm" />
+          <div className="skel skel-cell-sm" />
+          <div className="skel skel-cell-lg" />
+          <div className="skel skel-cell-sm" />
+          <div className="skel skel-cell-sm" />
         </div>
       ))}
     </div>

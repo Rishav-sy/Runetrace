@@ -21,7 +21,8 @@ PRICING = {
     "o1-mini": {"input": 0.003, "output": 0.012},
     "o3-mini": {"input": 0.0011, "output": 0.0044},
 
-    # Anthropic
+    # Claude 3.7 & 3.5
+    "claude-3.7-sonnet": {"input": 0.003, "output": 0.015},
     "claude-3.5-sonnet": {"input": 0.003, "output": 0.015},
     "claude-3.5-haiku": {"input": 0.0008, "output": 0.004},
     "claude-3-opus": {"input": 0.015, "output": 0.075},
@@ -29,15 +30,22 @@ PRICING = {
     "claude-3-haiku": {"input": 0.00025, "output": 0.00125},
 
     # Google
+    "gemini-2.5-flash": {"input": 0.000075, "output": 0.0003},
+    "gemini-2.5-pro": {"input": 0.00125, "output": 0.005},
     "gemini-1.5-pro": {"input": 0.00125, "output": 0.005},
     "gemini-1.5-flash": {"input": 0.000075, "output": 0.0003},
     "gemini-2.0-flash": {"input": 0.0001, "output": 0.0004},
     "gemini-2.0-pro": {"input": 0.00125, "output": 0.01},
 
     # Meta (via API providers)
+    "llama-3.3-70b-versatile": {"input": 0.00015, "output": 0.0006},
     "llama-3.1-405b": {"input": 0.003, "output": 0.003},
     "llama-3.1-70b": {"input": 0.0008, "output": 0.0008},
     "llama-3.1-8b": {"input": 0.0001, "output": 0.0001},
+
+    # xAI Grok
+    "grok-2-1212": {"input": 0.002, "output": 0.01},
+    "grok-2-vision-1212": {"input": 0.002, "output": 0.01},
 
     # Mistral
     "mistral-large": {"input": 0.002, "output": 0.006},

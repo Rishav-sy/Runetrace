@@ -1,70 +1,99 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import './CostByModelChart.css';
+import { useMemo } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
+import { getModelColor } from './MetricCards';
 
-const MODEL_COLORS = [
-  '#34d399', '#60a5fa', '#a78bfa', '#fbbf24', '#f472b6',
-  '#fb923c', '#38bdf8', '#c084fc', '#4ade80', '#f87171'
-];
+const CustomTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div style={{
+      background: '#1a1a1a', border: '1px solid #262626', borderRadius: 4,
+      padding: '10px 14px', fontFamily: "'JetBrains Mono', monospace", fontSize: 11
+    }}>
+      <div style={{ color: '#EDEDED', fontWeight: 600, marginBottom: 4 }}>{d.model}</div>
+      <div style={{ color: '#C8FF00' }}>${d.cost.toFixed(6)}</div>
+      <div style={{ color: '#8A8A8A', marginTop: 2 }}>{d.count} calls · avg ${d.avg.toFixed(6)}/call</div>
+      <div style={{ color: '#4A4A4A', fontSize: 9, marginTop: 6 }}>Click to filter by this model →</div>
+    </div>
+  );
+};
 
-export default function CostByModelChart({ logs }) {
-  // Group cost by model
-  const costByModel = {};
-  logs.forEach(log => {
-    const model = log.model || 'unknown';
-    costByModel[model] = (costByModel[model] || 0) + (log.cost || 0);
-  });
-
-  const data = Object.entries(costByModel)
-    .map(([model, cost]) => ({ model, cost: parseFloat(cost.toFixed(6)) }))
-    .sort((a, b) => b.cost - a.cost);
+export default function CostByModelChart({ logs, onFilterModel }) {
+  const data = useMemo(() => {
+    const map = {};
+    logs.forEach(l => {
+      const m = l.model || 'unknown';
+      if (!map[m]) map[m] = { cost: 0, count: 0 };
+      map[m].cost += l.cost || 0;
+      map[m].count++;
+    });
+    return Object.entries(map)
+      .map(([model, d]) => ({
+        model,
+        cost: parseFloat(d.cost.toFixed(6)),
+        count: d.count,
+        avg: d.cost / d.count,
+        color: getModelColor(model),
+      }))
+      .sort((a, b) => b.cost - a.cost);
+  }, [logs]);
 
   if (data.length === 0) {
     return (
-      <div className="chart-container">
-        <h3 className="chart-title">Cost by Model</h3>
-        <div className="chart-empty">No data yet — send some LLM requests!</div>
+      <div className="chart-panel">
+        <div className="chart-header"><div className="chart-title">Cost by model</div></div>
+        <div className="chart-empty">No data</div>
       </div>
     );
   }
 
   return (
-    <div className="chart-container">
-      <h3 className="chart-title">Cost by Model</h3>
-      <div className="chart-wrapper">
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-            <XAxis
-              dataKey="model"
-              tick={{ fill: '#94a3b8', fontSize: 12 }}
-              angle={-25}
-              textAnchor="end"
-              height={60}
-              axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-            />
-            <YAxis
-              tick={{ fill: '#94a3b8', fontSize: 12 }}
-              axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-              tickFormatter={(v) => `$${v}`}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: '#1e293b',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '12px',
-                color: '#f1f5f9',
-                fontSize: '0.85rem'
-              }}
-              formatter={(value) => [`$${value.toFixed(6)}`, 'Cost']}
-            />
-            <Bar dataKey="cost" radius={[8, 8, 0, 0]} maxBarSize={60}>
-              {data.map((_, index) => (
-                <Cell key={index} fill={MODEL_COLORS[index % MODEL_COLORS.length]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+    <div className="chart-panel">
+      <div className="chart-header">
+        <div className="chart-title">Cost by model</div>
+        <div className="chart-legend">
+          {data.slice(0, 4).map(d => (
+            <div
+              key={d.model}
+              className="legend-item clickable"
+              onClick={() => onFilterModel && onFilterModel(d.model)}
+            >
+              <div className="legend-dot" style={{ background: d.color }} />
+              <span>{d.model}</span>
+            </div>
+          ))}
+        </div>
       </div>
+      <ResponsiveContainer width="100%" height={data.length * 38 + 20}>
+        <BarChart
+          data={data}
+          layout="vertical"
+          margin={{ top: 0, right: 12, bottom: 0, left: 0 }}
+          onClick={(e) => {
+            if (e?.activePayload?.[0]?.payload?.model && onFilterModel) {
+              onFilterModel(e.activePayload[0].payload.model);
+            }
+          }}
+          style={{ cursor: onFilterModel ? 'pointer' : 'default' }}
+        >
+          <CartesianGrid horizontal={false} stroke="#1a1a1a" />
+          <XAxis type="number" hide />
+          <YAxis
+            type="category"
+            dataKey="model"
+            width={120}
+            tick={{ fill: '#8A8A8A', fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+          <Bar dataKey="cost" radius={[0, 3, 3, 0]} barSize={20}>
+            {data.map((d, i) => (
+              <Cell key={i} fill={d.color} fillOpacity={0.8} style={{ cursor: 'pointer' }} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }

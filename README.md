@@ -1,39 +1,39 @@
-<p align="center">
-  <h1 align="center">⚡ Runetrace</h1>
-  <p align="center"><strong>Free, serverless LLM observability — for exactly $0.00/month.</strong></p>
-  <p align="center">
-    <em>"Because you shouldn't need a $500/month tool to know what your AI is doing."</em>
-  </p>
-</p>
+<div align="center">
+  <h1>⚡ Runetrace</h1>
+  <p><strong>Free, Serverless LLM Observability — for exactly $0.00/month.</strong></p>
+  <p><em>"Because you shouldn't need a $500/month tool to know what your AI is doing."</em></p>
 
-<p align="center">
   <a href="#-quick-start"><img src="https://img.shields.io/badge/install-2_lines-brightgreen?style=for-the-badge" alt="2-line install" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://pypi.org/project/runetrace/"><img src="https://img.shields.io/badge/pypi-v0.1.0-orange?style=for-the-badge" alt="PyPI" /></a>
-</p>
+</div>
+
+<br />
+
+Runetrace gives developers complete visibility into their AI application's **cost**, **latency**, and **behavior** — using just a single Python decorator and a stunning, interactive real-time React dashboard.
+
+The entire backend runs entirely on the **AWS Free Tier** (Lambda + API Gateway + DynamoDB) and deploys with one simple Terraform command. No credit card risk. No vendor lock-in. 100% self-hosted and private.
 
 ---
 
-Runetrace gives developers complete visibility into their AI application's **cost**, **latency**, and **behavior** — with a single Python decorator and a real-time React dashboard.
-
-The entire backend runs on **AWS Free Tier** (Lambda + API Gateway + DynamoDB) and deploys with one Terraform command. No credit card risk. No vendor lock-in. Self-hostable by anyone.
-
-## 🖥️ Dashboard
-
-<!-- Replace with your own GIF using gifcap.dev -->
-> The dashboard shows real-time metrics, cost breakdown by model, and a searchable request log.
-
 ## ✨ Features
 
-| Feature | Description |
-|---|---|
-| 🎯 **One-line tracking** | Add `@track_llm` to any LLM call |
-| 💰 **Auto cost calculation** | 30+ models (OpenAI, Anthropic, Google, Meta, Mistral, DeepSeek) |
-| ⚡ **Zero overhead** | Logs are sent in background threads |
-| 📊 **Real-time dashboard** | React + Recharts with auto-refresh |
-| 🔒 **Self-hosted** | Your data never leaves your AWS account |
-| 🆓 **$0/month** | Runs entirely on AWS Free Tier |
-| 🏗️ **Infrastructure as Code** | One `terraform apply` to deploy everything |
+- 🎯 **One-line tracking** — Add `@track_llm` to any function to instantly track tokens, cost, latency, and errors.
+- 💰 **Auto Cost Calculation** — Supports 30+ of the latest models (OpenAI, Anthropic Claude 3.7, Google Gemini 2.5, Meta, Mistral, xAI Grok).
+- ⚡ **Zero Overhead** — Your AI calls aren't slowed down; logs are batched and sent asynchronously by background threads.
+- 🔒 **100% Data Privacy** — Self-hosted. Your prompts, responses, and API keys never leave your AWS account.
+- 🆓 **$0/month** — Designed to run entirely within the AWS Free Tier.
+- 🏗️ **Infrastructure as Code** — One `terraform apply` stands up the entire serverless ingestion pipeline.
+
+## 🖥️ The Interactive Dashboard
+
+Runetrace ships with a Grafana-style, highly interactive React dashboard:
+- **Click-to-Filter Interactivity:** Click any model, function, or error rate on the charts to instantly filter your request logs.
+- **Deep Detail Drawer:** Click any log row to slide out a Drawer containing full prompt text, responses, token breakdowns, and exact error messages with one-click copy functionality.
+- **Advanced Metrics:** See Latency over Time, Cost by Model, Function Frequency, and Token Consumption across different dynamic time ranges (1H to 30D).
+- **Sortable & Searchable:** Find exactly which prompt triggered a failure or which model is eating your budget.
+
+---
 
 ## 🚀 Quick Start
 
@@ -49,9 +49,11 @@ pip install runetrace
 import runetrace
 from openai import OpenAI
 
+# Point the SDK to your deployed Runetrace API Gateway
 runetrace.configure(
-    api_url="https://your-api-gateway-url.amazonaws.com",
-    project_id="my-app"
+    api_url="https://your-api-gateway-url.amazonaws.com/prod",
+    api_key="your-api-key",
+    project_id="my-ai-app"
 )
 
 client = OpenAI()
@@ -64,25 +66,12 @@ def ask(prompt):
     )
 
 response = ask("What is the meaning of life?")
-# ✅ Cost, latency, and tokens are automatically tracked!
+# ✅ Prompt, Response, Cost, Latency, and Tokens are automatically tracked and sent to DynamoDB!
 ```
 
-That's it. Every call is now logged, costed, and visible on the dashboard.
+That's it. Every call is now logged, costed, and beautifully visualized on your dashboard. Supports both synchronous (`@track_llm`) and asynchronous (`@track_llm_async`) operations.
 
-## 🏗️ Architecture
-
-```
-┌─────────────────┐     POST /ingest     ┌──────────────┐     ┌──────────────┐
-│  Your Python    │ ──────────────────▶  │  API Gateway  │ ──▶ │   Lambda     │
-│  App + SDK      │                      │  (HTTP API)   │     │  (Ingest)    │
-└─────────────────┘                      └──────────────┘     └──────┬───────┘
-                                                                      │
-                                                                      ▼
-┌─────────────────┐     GET /logs        ┌──────────────┐     ┌──────────────┐
-│  React          │ ◀──────────────────  │  API Gateway  │ ◀── │  DynamoDB    │
-│  Dashboard      │                      │  (HTTP API)   │     │  (LLMLogs)   │
-└─────────────────┘                      └──────────────┘     └──────────────┘
-```
+---
 
 ## 🛠️ Deploy Your Own in 5 Minutes
 
@@ -90,98 +79,89 @@ That's it. Every call is now logged, costed, and visible on the dashboard.
 - AWS account (free tier is fine)
 - [Terraform](https://www.terraform.io/downloads) installed
 - AWS CLI configured (`aws configure`)
+- Node.js (for the dashboard)
 
-### Steps
+### 1. Clone & Deploy Infrastructure
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/rishavsy/runetrace.git
-cd runetrace
+# Clone the repo
+git clone https://github.com/rishav-sy/runetrace.git
+cd runetrace/terraform
 
-# 2. Deploy AWS infrastructure
-cd terraform
+# Deploy AWS infrastructure (Lambda, API Gateway, DynamoDB)
 terraform init
 terraform apply -auto-approve
-# → Copy the API Gateway URL from the output
 
-# 3. Start the dashboard
-cd ../dashboard
-npm install
-VITE_API_URL=https://your-api-url.amazonaws.com npm run dev
+# ⚠️ Copy the "api_url" and "api_key" from the Terraform outputs!
 ```
 
-### GitHub Secrets (for CI/CD)
+### 2. Start the Dashboard
 
-If using the included GitHub Actions workflow, add these secrets:
+```bash
+cd ../dashboard
+npm install
 
-| Secret | Description |
-|---|---|
-| `AWS_ACCESS_KEY_ID` | IAM user access key |
-| `AWS_SECRET_ACCESS_KEY` | IAM user secret key |
-| `AWS_REGION` | e.g. `us-east-1` |
-| `API_URL` | Your API Gateway URL |
-| `VERCEL_TOKEN` | For dashboard deployment |
-| `VERCEL_ORG_ID` | Vercel org ID |
-| `VERCEL_PROJECT_ID` | Vercel project ID |
+# Create a .env file locally with your Terraform outputs
+echo "VITE_API_URL=https://your-api-url.amazonaws.com/prod" > .env
+echo "VITE_API_KEY=your-api-key" >> .env
 
-## 📦 Supported Models
+# Run the dev server
+npm run dev
+```
+Navigate to `http://localhost:5173/dashboard` to see your logs!
+
+---
+
+## 🏗️ Serverless Architecture
+
+```text
+┌─────────────────┐     POST /ingest     ┌──────────────┐     ┌──────────────┐
+│  Your Python    │ ──────────────────▶  │  API Gateway  │ ──▶ │   Lambda     │
+│  App + SDK      │   (Async Batching)   │  (HTTP API)   │     │  (Ingest)    │
+└─────────────────┘                      └──────────────┘     └──────┬───────┘
+                                                                     │
+                                                                     ▼
+┌─────────────────┐     GET /logs        ┌──────────────┐     ┌──────────────┐
+│  React (Vite)   │ ◀──────────────────  │  API Gateway  │ ◀── │  DynamoDB    │
+│  Dashboard      │                      │  (HTTP API)   │     │  (runetrace) │
+└─────────────────┘                      └──────────────┘     └──────────────┘
+```
+
+## 📦 Supported Models (Continuously Updated)
 
 | Provider | Models |
 |---|---|
-| OpenAI | GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-3.5 Turbo, o1, o1-mini, o3-mini |
-| Anthropic | Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus/Sonnet/Haiku |
-| Google | Gemini 2.0 Pro/Flash, Gemini 1.5 Pro/Flash |
-| Meta | Llama 3.1 (405B, 70B, 8B) |
-| Mistral | Mistral Large, Mistral Small, Mixtral 8x7B |
-| DeepSeek | DeepSeek V3, DeepSeek R1 |
+| **OpenAI** | GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-3.5 Turbo, o1, o1-mini, o3-mini |
+| **Anthropic** | Claude 3.7 Sonnet, Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus/Sonnet/Haiku |
+| **Google** | Gemini 2.5 Pro/Flash, Gemini 2.0 Pro/Flash, Gemini 1.5 Pro/Flash |
+| **Meta** | Llama 3.3 (70B), Llama 3.1 (405B, 70B, 8B) |
+| **Mistral** | Mistral Large, Mistral Small, Mixtral 8x7B |
+| **xAI** | Grok 2, Grok 2 Vision |
+| **DeepSeek** | DeepSeek V3, DeepSeek R1 |
+
+_If a model isn't found exactly, Runetrace uses fuzzy matching (e.g., `gpt-4o-2024-05-13` maps to `gpt-4o`) to ensure accurate costing._
 
 ## 💲 AWS Cost Breakdown
 
-| Service | Free Tier Limit | Runetrace Usage |
-|---|---|---|
-| DynamoDB | 25 GB + 25 RCU/WCU | ~KBs per day |
-| Lambda | 1M requests/month | < 1000/month typical |
-| API Gateway | 1M calls/month (12 mo) | < 1000/month typical |
-| CloudWatch | 5 GB logs | Minimal |
-| **Total** | | **$0.00/month** |
+This infrastructure was carefully designed to stay well within the AWS Free Tier.
 
-## 🧪 Running Tests
-
-```bash
-cd sdk
-python -m venv .venv && source .venv/bin/activate
-pip install -e . && pip install pytest
-python -m pytest tests/ -v
-```
-
-## 📂 Project Structure
-
-```
-runetrace/
-├── terraform/          # AWS infrastructure (DynamoDB, Lambda, API Gateway)
-│   └── main.tf
-├── backend/            # Lambda function code
-│   ├── ingest.py       # POST /ingest handler
-│   └── get_logs.py     # GET /logs handler
-├── sdk/                # Python SDK (pip installable)
-│   └── runetrace/
-│       ├── __init__.py
-│       ├── tracker.py  # @track_llm decorator
-│       └── pricing.py  # LLM pricing table
-├── dashboard/          # React observability dashboard
-│   └── src/
-│       ├── App.jsx
-│       ├── hooks/useLLMLogs.js
-│       └── components/
-├── .github/workflows/  # CI/CD pipeline
-│   └── deploy.yml
-├── LICENSE             # MIT
-└── CONTRIBUTING.md
-```
+| Service | Free Tier Limit | Runetrace Typical Usage | Cost |
+|---|---|---|---|
+| **DynamoDB** | 25 GB Storage, 25 WCU/RCU | ~MBs per day, bursts handled natively | $0.00 |
+| **Lambda** | 1,000,000 requests/month | < 5,000 requests/month | $0.00 |
+| **API Gateway** | 1,000,000 calls/month | < 5,000 requests/month | $0.00 |
+| **CloudWatch** | 5 GB logs | Minimal text logs | $0.00 |
+| **Total** | | | **$0.00/month** |
 
 ## 🤝 Contributing
 
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+To run SDK tests locally:
+```bash
+cd sdk
+pip install -e .[test]
+pytest tests/ -v
+```
 
 ## 📄 License
 
@@ -190,5 +170,5 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
 ---
 
 <p align="center">
-  <strong>Built by <a href="https://github.com/rishavsy">Rishav</a></strong> — Cloud + DevOps + MLOps
+  <strong>Built for builders by <a href="https://github.com/rishav-sy">Rishav</a></strong>
 </p>

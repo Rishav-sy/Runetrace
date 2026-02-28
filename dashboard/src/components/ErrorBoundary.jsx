@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { AlertTriangle } from 'lucide-react';
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -11,7 +12,7 @@ class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Runetrace Dashboard Error:', error, errorInfo);
+    console.error('Runetrace:', error, errorInfo);
   }
 
   render() {
@@ -19,11 +20,11 @@ class ErrorBoundary extends Component {
       return (
         <div className="error-boundary">
           <div className="error-boundary-content">
-            <div className="error-boundary-icon">⚠️</div>
+            <AlertTriangle size={48} />
             <h2>Something went wrong</h2>
             <p>{this.state.error?.message || 'An unexpected error occurred'}</p>
             <button
-              className="error-boundary-btn"
+              className="btn-primary"
               onClick={() => this.setState({ hasError: false, error: null })}
             >
               Try Again
