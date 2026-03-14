@@ -1,11 +1,14 @@
 import { useEffect, useRef, useMemo, Suspense } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useScroll, useTransform, useInView } from 'framer-motion';
+import { motion, useScroll, useTransform, useInView, useSpring } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { ArrowRight, Github, DollarSign, Clock, BarChart3, Code2, Eye, Shield, Zap, Activity, Terminal } from 'lucide-react';
+import { ArrowRight, Github, DollarSign, Clock, BarChart3, Code2, Eye, Shield, Zap, Activity, Terminal, Database, Brain, GitBranch, PenLine, Sparkles, Wand2, Layers, Repeat, Check } from 'lucide-react';
+import TraceView from '../components/TraceView';
+import PromptTemplates from '../components/PromptTemplates';
+import DatasetsView from '../components/DatasetsView';
 import './Landing.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -164,6 +167,400 @@ def ask_ai(prompt):
 }
 
 /* ═══════════════════════════════════
+   Bento Showcases
+   ═══════════════════════════════════ */
+
+function BentoPrompts() {
+  const code = "{\n  \"role\": \"system\",\n  \"content\": \"You are an eager AI assistant...\"\n}";
+  return (
+    <div className="ln-bento-card bento-prompts">
+      <div className="ln-bento-content">
+        <div className="ln-bento-icon"><PenLine size={20} /></div>
+        <h3>Prompt Engineering</h3>
+        <p>Version control for your prompts. Edit, test, and deploy without touching code.</p>
+      </div>
+      <div className="ln-bento-visual">
+        <div className="ln-bento-mockup ln-mockup-editor">
+          <div className="ln-mockup-header">
+            <span>system_prompt_v2.1</span>
+            <div className="ln-mockup-tag">Live</div>
+          </div>
+          <pre><code>{code}</code></pre>
+          <div className="ln-mockup-vars">
+            <span className="var-pill">{"{{"}user_name{"}}"}</span>
+            <span className="var-pill">{"{{"}context{"}}"}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BentoEvals() {
+  return (
+    <div className="ln-bento-card bento-evals">
+      <div className="ln-bento-content">
+        <div className="ln-bento-icon"><Brain size={20} /></div>
+        <h3>Automated Evaluations</h3>
+        <p>Use LLM-as-a-Judge to automatically score outputs for accuracy, relevance, and toxicity.</p>
+      </div>
+      <div className="ln-bento-visual">
+         <div className="ln-bento-mockup ln-mockup-scorecard">
+           <div className="ln-score-row">
+             <span>Accuracy</span>
+             <div className="ln-score-bar"><motion.div className="ln-score-fill" initial={{width:0}} whileInView={{width:'92%'}} transition={{duration:1, delay:0.2}} style={{background:'var(--ln-lime)'}} /></div>
+             <span className="ln-score-val">4.6/5</span>
+           </div>
+           <div className="ln-score-row">
+             <span>Tone Avoidance</span>
+             <div className="ln-score-bar"><motion.div className="ln-score-fill" initial={{width:0}} whileInView={{width:'100%'}} transition={{duration:1, delay:0.4}} style={{background:'var(--ln-lime)'}} /></div>
+             <span className="ln-score-val">5.0/5</span>
+           </div>
+           <div className="ln-score-row">
+             <span>Hallucination</span>
+             <div className="ln-score-bar"><motion.div className="ln-score-fill" initial={{width:0}} whileInView={{width:'12%'}} transition={{duration:1, delay:0.6}} style={{background:'#FF6B35'}} /></div>
+             <span className="ln-score-val">0.6/5</span>
+           </div>
+         </div>
+      </div>
+    </div>
+  );
+}
+
+function BentoTraces() {
+  return (
+    <div className="ln-bento-card bento-traces ln-span-2">
+      <div className="ln-bento-content ln-row-content">
+        <div className="ln-bento-icon"><GitBranch size={20} /></div>
+        <div className="ln-text-wrap">
+          <h3>Distributed Tracing</h3>
+          <p>See the exact execution path of Agentic workflows. Waterfall latency charts, cost rollups, and deep step inspection.</p>
+        </div>
+      </div>
+      <div className="ln-bento-visual bento-traces-vis">
+        <div className="ln-waterfall">
+           {[
+             { name: 'Agent Executor', w: '100%', ml: '0%', c: '#C8FF00', t: '2.4s' },
+             { name: 'Retrieve Context', w: '30%', ml: '5%', c: '#448AFF', t: '0.8s' },
+             { name: 'LLM: gpt-4o', w: '55%', ml: '40%', c: '#FFB300', t: '1.4s' },
+             { name: 'Tool: Search', w: '25%', ml: '45%', c: '#FF6B35', t: '0.6s' }
+           ].map((row, i) => (
+             <div key={i} className="ln-wf-row">
+               <span className="ln-wf-name">{row.name}</span>
+               <div className="ln-wf-track">
+                 <motion.div className="ln-wf-bar" initial={{width:0, opacity:0}} whileInView={{width: row.w, opacity:1}} transition={{duration:0.6, delay: 0.1 * i}} style={{marginLeft: row.ml, background: row.c}} />
+               </div>
+               <span className="ln-wf-time">{row.t}</span>
+             </div>
+           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BentoDatasets() {
+  return (
+    <div className="ln-bento-card bento-datasets ln-span-2">
+      <div className="ln-bento-content ln-row-content">
+        <div className="ln-bento-icon"><Database size={20} /></div>
+        <div className="ln-text-wrap">
+          <h3>Golden Datasets & Test Suites</h3>
+          <p>Catch regressions before production. Curate datasets of inputs and run batch test suites to compare expected vs actual outputs.</p>
+        </div>
+      </div>
+      <div className="ln-bento-visual bento-data-vis">
+        <div className="ln-data-table">
+          <div className="ln-dt-head">
+            <span>Input Variables</span>
+            <span>Expected Golden Output</span>
+            <span>Actual Output</span>
+          </div>
+          <div className="ln-dt-row">
+            <span className="ln-dt-cell hl-blue">{"{topic: 'taxes'}"}</span>
+            <span className="ln-dt-cell">I cannot provide tax advice...</span>
+            <span className="ln-dt-cell hl-green">I cannot provide tax advice...</span>
+          </div>
+          <div className="ln-dt-row">
+            <span className="ln-dt-cell hl-blue">{"{topic: 'js'}"}</span>
+            <span className="ln-dt-cell">Use const or let, avoid var.</span>
+            <span className="ln-dt-cell hl-green">I recommend using const/let...</span>
+          </div>
+          <div className="ln-data-progress">
+             <div className="ln-dp-text">Suite Progress <span>2/2 passed</span></div>
+             <div className="ln-dp-track"><motion.div className="ln-dp-fill" initial={{width:0}} whileInView={{width:'100%'}} transition={{duration:1.5, delay:0.3}} /></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════
+   Sticky Deep Dives & Interactive Mocks
+   ═══════════════════════════════════ */
+
+const DEMO_LOGS = [
+  { trace_id: 'auto-100', function_name: 'Agent Executor', model: 'gpt-4o', prompt_tokens: 3420, completion_tokens: 120, latency_ms: 2450, cost: 0.018, status: 'success', timestamp: Date.now() / 1000 - 10, prompt: 'You are a helpful support agent.', response: 'I can help with that refund.' },
+  { trace_id: 'auto-100', function_name: 'Retrieve Context', model: 'text-embedding-3-small', prompt_tokens: 42, completion_tokens: 0, latency_ms: 120, cost: 0.0001, status: 'success', timestamp: Date.now() / 1000 - 12, prompt: 'User intent: refund', response: '[0.12, 0.44, -0.05...]' },
+  { trace_id: 'auto-100', function_name: 'Extract Intent', model: 'gpt-4o-mini', prompt_tokens: 850, completion_tokens: 15, latency_ms: 680, cost: 0.001, status: 'success', timestamp: Date.now() / 1000 - 13, prompt: 'Extract intent from: "My order arrived broken"', response: '{"intent": "refund"}' },
+  { trace_id: 'auto-101', function_name: 'Summarize Document', model: 'claude-3.5-sonnet', prompt_tokens: 12500, completion_tokens: 850, latency_ms: 8400, cost: 0.045, status: 'success', timestamp: Date.now() / 1000 - 110, prompt: 'Summarize the attached PDF...', response: 'Here is the summary...' },
+  { trace_id: 'auto-102', function_name: 'Generate Code', model: 'llama-3.3-70b-versatile', prompt_tokens: 120, completion_tokens: 400, latency_ms: 3200, cost: 0.002, status: 'success', timestamp: Date.now() / 1000 - 900, prompt: 'Write a React component...', response: '```jsx\nexport default function App...' }
+];
+
+function BrowserMockup({ children, className = "" }) {
+  return (
+    <div className={`ln-browser-mockup ${className}`}>
+      <div className="ln-browser-header">
+        <div className="ln-browser-dots">
+          <span className="dot" />
+          <span className="dot" />
+          <span className="dot" />
+        </div>
+        <div className="ln-browser-url">
+          <Shield size={10} />
+          <span>runetrace.ai/dashboard</span>
+        </div>
+      </div>
+      <div className="ln-browser-content">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function AppPreview({ children }) {
+  return (
+    <div className="landing-app-preview-v2">
+      <style>{`
+        .landing-app-preview-v2 .trace-layout,
+        .landing-app-preview-v2 .prompt-templates,
+        .landing-app-preview-v2 .datasets-layout,
+        .landing-app-preview-v2 .prompt-tpl-layout { height: 100% !important; background: transparent !important; }
+        .landing-app-preview-v2 * { cursor: default; }
+        .landing-app-preview-v2 .trace-sidebar, .landing-app-preview-v2 .prompt-tpl-sidebar { background: rgba(255,255,255,0.02) !important; border-right: 1px solid rgba(255,255,255,0.05) !important; }
+        .landing-app-preview-v2 .panel, .landing-app-preview-v2 .table-panel { background: rgba(255,255,255,0.01) !important; border-color: rgba(255,255,255,0.05) !important; }
+      `}</style>
+      <div className="app-preview-inner">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+const deepDivesData = [
+  {
+    icon: <GitBranch size={24} />,
+    colorClass: 'hl-orange',
+    title: 'Distributed Tracing for Agents',
+    p: "When your agent enters a loop, simple prompt logging isn't enough. Runetrace captures full execution waterfalls, letting you inspect the exact inputs, outputs, tokens, and latency of every sub-step.",
+    ul: [
+      { text: 'Real-time latency waterfall charts', iconColor: 'hl-orange' },
+      { text: 'Nested tool calls and RAG context retrieval', iconColor: 'hl-orange' },
+      { text: 'Per-step cost breakdowns', iconColor: 'hl-orange' },
+    ],
+    mockupClass: 'traces-mockup',
+    mockup: (
+      <BrowserMockup>
+        <AppPreview>
+          <TraceView logs={DEMO_LOGS} />
+        </AppPreview>
+      </BrowserMockup>
+    )
+  },
+  {
+    icon: <PenLine size={24} />,
+    colorClass: 'hl-blue',
+    title: 'Iterate Without Deployments',
+    p: 'Stop hardcoding prompts in Python. The Prompt IDE lets product managers and prompt engineers test, version, and deploy prompts directly to production without touching git.',
+    ul: [
+      { text: 'Split-pane Playground with 13+ integrated models', iconColor: 'hl-blue' },
+      { text: 'A/B Compare mode for testing different LLMs side-by-side', iconColor: 'hl-blue' },
+      { text: 'Instant rollback to any previous version', iconColor: 'hl-blue' },
+    ],
+    mockupClass: 'prompts-mockup',
+    mockup: (
+      <BrowserMockup>
+        <AppPreview>
+          <PromptTemplates />
+        </AppPreview>
+      </BrowserMockup>
+    )
+  },
+  {
+    icon: <Database size={24} />,
+    colorClass: 'hl-lime',
+    title: 'Golden Datasets & Evals',
+    p: "Don't guess if your new prompt is better. Prove it. Save edge-case production logs to a Golden Dataset with one click, and run automated test suites graded by LLM-as-a-Judge.",
+    ul: [
+      { text: 'Batch Execution automatically hydrates prompt variables', iconColor: 'hl-lime' },
+      { text: 'Define custom rubrics (Accuracy, Toxicity, Hallucination)', iconColor: 'hl-lime' },
+      { text: 'Prevent regressions before merging to production', iconColor: 'hl-lime' },
+    ],
+    mockupClass: 'dataset-mockup',
+    mockup: (
+      <BrowserMockup>
+        <AppPreview>
+          <DatasetsView />
+        </AppPreview>
+      </BrowserMockup>
+    )
+  },
+  {
+    icon: <Shield size={24} />,
+    colorClass: 'hl-orange',
+    title: '100% Data Privacy. Zero Cloud Bills.',
+    p: 'Unlike SaaS tools that hoard your proprietary prompts and customer data, Runetrace deploys directly into your AWS environment via Terraform.',
+    ul: [
+      { text: 'PII and sensitive data never leaves your VPC', iconColor: 'hl-orange' },
+      { text: 'Fully serverless architecture built on API Gateway and Lambda', iconColor: 'hl-orange' },
+      { text: 'Costs $0.00/month on the AWS Free Tier', iconColor: 'hl-orange' },
+    ],
+    mockupClass: 'arch-mockup',
+    mockup: (
+      <BrowserMockup>
+        <div className="lm-arch-preview">
+          <div className="lm-arch-box user-app">Your App Container</div>
+          <div className="lm-arch-arrow"><div className="lm-arch-pulse" /></div>
+          <div className="lm-arch-cloud">
+             <span className="lm-cloud-title"><Shield size={14}/> Your AWS Account</span>
+             <div className="lm-arch-aws-grid">
+               <div className="lm-aws-service hl-orange">API Gateway</div>
+               <div className="lm-aws-service hl-orange">Lambda</div>
+               <div className="lm-aws-service hl-blue">DynamoDB</div>
+             </div>
+          </div>
+        </div>
+      </BrowserMockup>
+    )
+  }
+];
+
+function StickyTextBlock({ data, index, progress, segments }) {
+  const [startIn, endIn, startOut, endOut] = segments[index];
+  const opacity = index === 3 
+    ? useTransform(progress, [startIn, endIn], [0, 1])
+    : useTransform(progress, [startIn, endIn, startOut, endOut], [0, 1, 1, 0]);
+    
+  const y = index === 3
+    ? useTransform(progress, [startIn, endIn], [40, 0])
+    : useTransform(progress, [startIn, endIn, startOut, endOut], [40, 0, 0, -40]);
+    
+  const pointerEvents = useTransform(opacity, (val) => val > 0.1 ? 'auto' : 'none');
+
+  return (
+    <motion.div className="ln-sticky-text-block" style={{ opacity, y, pointerEvents }}>
+      <div className={`ln-deep-icon ${data.colorClass}`}>{data.icon}</div>
+      <div className="ln-deep-text">
+        <h2>{data.title}</h2>
+        <p>{data.p}</p>
+        <ul className="ln-deep-list">
+          {data.ul.map((item, j) => (
+            <li key={j}><Check size={18} className={item.iconColor} /> <span>{item.text}</span></li>
+          ))}
+        </ul>
+      </div>
+    </motion.div>
+  );
+}
+
+function StickyVisualBlock({ data, index, progress, segments }) {
+  const [startIn, endIn, startOut, endOut] = segments[index];
+  const opacity = index === 3 
+    ? useTransform(progress, [startIn, endIn], [0, 1])
+    : useTransform(progress, [startIn, endIn, startOut, endOut], [0, 1, 1, 0]);
+    
+  const scale = index === 3
+    ? useTransform(progress, [startIn, endIn], [0.95, 1])
+    : useTransform(progress, [startIn, endIn, startOut, endOut], [0.95, 1, 1, 0.95]);
+
+  const rotateX = index === 3
+    ? useTransform(progress, [startIn, endIn], [10, 0])
+    : useTransform(progress, [startIn, endIn, startOut, endOut], [10, 0, 0, -10]);
+    
+  const pointerEvents = useTransform(opacity, (val) => val > 0.1 ? 'auto' : 'none');
+
+  return (
+    <motion.div 
+      className="ln-sticky-visual" 
+      style={{ 
+        opacity, 
+        scale, 
+        rotateX,
+        perspective: '1000px',
+        pointerEvents 
+      }}
+    >
+      <div className={`ln-browser-mockup ${data.mockupClass}`}>{data.mockup}</div>
+    </motion.div>
+  );
+}
+
+function NavDot({ index, progress, segments }) {
+  const [start, end] = segments[index];
+  const active = useTransform(progress, [start, end], [0.3, 1]);
+  const scale = useTransform(progress, [start, end], [0.8, 1.2]);
+  return (
+    <motion.div 
+      className="ln-nav-dot" 
+      style={{ opacity: active, scale }} 
+    />
+  );
+}
+
+function StickyDeepDives() {
+  const containerRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end end"]
+  });
+  const smoothProgress = useSpring(scrollYProgress, { stiffness: 300, damping: 30, restDelta: 0.001 });
+
+  const segments = [
+    [0, 0, 0.15, 0.25],       
+    [0.15, 0.25, 0.40, 0.50], 
+    [0.40, 0.50, 0.65, 0.75], 
+    [0.65, 0.75, 1, 1]        
+  ];
+
+  return (
+    <section ref={containerRef} className="ln-sticky-wrapper">
+      <div className="ln-sticky-pinned">
+        <div className="ln-sticky-inner">
+          <div className="ln-sticky-left">
+            {deepDivesData.map((d, i) => (
+              <StickyTextBlock key={i} data={d} index={i} progress={smoothProgress} segments={segments} />
+            ))}
+          </div>
+          <div className="ln-sticky-right">
+            {deepDivesData.map((d, i) => (
+              <StickyVisualBlock key={i} data={d} index={i} progress={smoothProgress} segments={segments} />
+            ))}
+          </div>
+        </div>
+
+        {/* Navigation Dots */}
+        <div className="ln-sticky-nav">
+          {deepDivesData.map((_, i) => (
+            <NavDot key={i} index={i} progress={smoothProgress} segments={segments} />
+          ))}
+        </div>
+
+        {/* Dynamic Glow Spots */}
+        <motion.div 
+          className="ln-sticky-glow"
+          style={{
+            top: useTransform(smoothProgress, [0, 1], ['20%', '80%']),
+            left: useTransform(smoothProgress, [0, 1], ['70%', '30%']),
+            opacity: useTransform(smoothProgress, [0, 0.2, 0.8, 1], [0, 0.4, 0.4, 0]),
+          }}
+        />
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════
    LANDING
    ═══════════════════════════════════ */
 export default function Landing() {
@@ -244,109 +641,42 @@ export default function Landing() {
         </FadeIn>
       </section>
 
-      {/* ── Features ── */}
+      {/* ── Features Bento Box ── */}
       <section className="ln-features" id="features">
         <FadeIn>
           <div className="ln-section-head">
-            <p className="ln-label">Features</p>
-            <h2 className="ln-h2">Everything you need to<br /><span className="ln-accent">understand your AI</span></h2>
+            <p className="ln-label">Platform</p>
+            <h2 className="ln-h2">Enterprise-grade tooling.<br /><span className="ln-accent">Zero dollars.</span></h2>
           </div>
         </FadeIn>
-        <div className="ln-features-grid">
+        
+        <div className="ln-bento-grid">
+          <FadeIn delay={0.0} className="ln-bento-wrapper"><BentoPrompts /></FadeIn>
+          <FadeIn delay={0.1} className="ln-bento-wrapper"><BentoEvals /></FadeIn>
+          <FadeIn delay={0.2} className="ln-bento-wrapper ln-span-2"><BentoTraces /></FadeIn>
+          <FadeIn delay={0.3} className="ln-bento-wrapper ln-span-2"><BentoDatasets /></FadeIn>
+        </div>
+        
+        {/* Core SDK Features */}
+        <div className="ln-core-features">
           {[
-            { icon: DollarSign, color: '#C8FF00', bg: 'rgba(200,255,0,0.06)', title: 'Cost tracking', desc: 'Per-model, per-function cost breakdowns. Built-in pricing for GPT-4o, Claude, Gemini, DeepSeek, and 30+ models.', wide: true },
-            { icon: Clock, color: '#FF6B35', bg: 'rgba(255,107,53,0.06)', title: 'Latency monitoring', desc: 'Function-level latency heatmaps. Spot slow calls before they become incidents.' },
-            { icon: BarChart3, color: '#448AFF', bg: 'rgba(68,138,255,0.06)', title: 'Token analytics', desc: 'Prompt vs completion breakdown. Catch bloated prompts before they blow up costs.' },
-            { icon: Eye, color: '#00E676', bg: 'rgba(0,230,118,0.06)', title: 'Prompt inspection', desc: 'Full prompt and response logging. Click any row to debug any call.' },
-            { icon: Code2, color: '#B388FF', bg: 'rgba(179,136,255,0.06)', title: 'One-line SDK', desc: 'Add @track_llm to any function. Async support, batched uploads, automatic extraction.' },
-            { icon: Shield, color: '#FFB300', bg: 'rgba(255,179,0,0.06)', title: 'Self-hosted', desc: 'Runs on your AWS. Prompts never leave your infrastructure. DynamoDB + Lambda — all free tier.', wide: true },
+            { icon: DollarSign, title: 'Cost tracking', desc: 'Built-in pricing for GPT-4o, Claude 3.5, Gemini 1.5, and 30+ open models.' },
+            { icon: Clock, title: 'Latency heatmaps', desc: 'Spot slow calls and provider degradation before they become incidents.' },
+            { icon: Shield, title: '100% Self-hosted', desc: 'Runs on your AWS. Prompts never leave your infrastructure. Free tier.' },
           ].map((f, i) => (
-            <FadeIn key={f.title} delay={i * 0.05} className={`ln-feature ${f.wide ? 'ln-feature-wide' : ''}`}>
-              <div className="ln-feature-icon" style={{ background: f.bg, color: f.color }}><f.icon size={20} /></div>
-              <h3>{f.title}</h3>
+            <FadeIn key={f.title} delay={i * 0.1} className="ln-core-card">
+              <div className="ln-core-icon"><f.icon size={18} /></div>
+              <h4>{f.title}</h4>
               <p>{f.desc}</p>
             </FadeIn>
           ))}
         </div>
       </section>
 
+      {/* ── Deep Dives ── */}
+      <StickyDeepDives />
+
       {/* ── Dashboard preview ── */}
-      <section className="ln-preview">
-        <FadeIn>
-          <div className="ln-section-head">
-            <p className="ln-label">Dashboard</p>
-            <h2 className="ln-h2">Your command center</h2>
-          </div>
-        </FadeIn>
-        <FadeIn delay={0.1}>
-          <div className="ln-preview-frame">
-            <div className="ln-preview-chrome">
-              <div className="ln-dots"><i /><i /><i /></div>
-              <div className="ln-preview-url">localhost:5173/dashboard</div>
-            </div>
-            <div className="ln-preview-body">
-              <Link to="/dashboard" className="ln-preview-hover">
-                <span>Open Live Dashboard <ArrowRight size={15} /></span>
-              </Link>
-              {/* Mini dashboard mockup */}
-              <div className="ln-mini">
-                <div className="ln-mini-top">
-                  <span className="ln-mini-brand"><b style={{ color: '#C8FF00' }}>R</b> runetrace</span>
-                  <div className="ln-mini-pills">
-                    {['1H','24H','7D','ALL'].map(r => (
-                      <span key={r} className={r === '7D' ? 'active' : ''}>{r}</span>
-                    ))}
-                  </div>
-                  <span className="ln-mini-live">● LIVE</span>
-                </div>
-                <div className="ln-mini-cards">
-                  {[
-                    { l: 'Total Spend', v: '$1.00' },
-                    { l: 'Calls', v: '350' },
-                    { l: 'Avg Latency', v: '2.4s', c: '#FFB300' },
-                    { l: 'Models', v: '6' },
-                  ].map(c => (
-                    <div key={c.l} className="ln-mini-card">
-                      <span className="ln-mini-card-label">{c.l}</span>
-                      <span className="ln-mini-card-val" style={c.c ? { color: c.c } : {}}>{c.v}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="ln-mini-charts">
-                  <div className="ln-mini-chart">
-                    <div className="ln-mini-chart-title">Cost by Model</div>
-                    {[
-                      { n: 'claude-3.5-sonnet', w: '82%', c: '#FF6B35' },
-                      { n: 'gpt-4o', w: '58%', c: '#C8FF00' },
-                      { n: 'claude-3.5-haiku', w: '18%', c: '#00E676' },
-                      { n: 'gpt-4o-mini', w: '10%', c: '#448AFF' },
-                    ].map(b => (
-                      <div key={b.n} className="ln-mini-bar-row">
-                        <span>{b.n}</span>
-                        <div className="ln-mini-bar" style={{ width: b.w, background: b.c }} />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="ln-mini-chart">
-                    <div className="ln-mini-chart-title">Latency by Function</div>
-                    {[
-                      { fn: 'generate_report', dots: '🔴🔴🟡🔴🟡🔴' },
-                      { fn: 'rag_query', dots: '🟡🟢🟡🔴🟡🟢' },
-                      { fn: 'chat_completion', dots: '🟢🟡🟢🟢🟡🟢' },
-                      { fn: 'classify_intent', dots: '🟢🟢🟢🟢🟢🟢' },
-                    ].map(r => (
-                      <div key={r.fn} className="ln-mini-dot-row">
-                        <span>{r.fn}</span>
-                        <span className="ln-mini-dots">{r.dots}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </FadeIn>
-      </section>
 
       {/* ── Pricing ── */}
       <section className="ln-pricing" id="pricing">

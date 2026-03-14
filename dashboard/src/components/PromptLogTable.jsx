@@ -1,12 +1,36 @@
 import { useState, useMemo, useCallback, Fragment } from 'react';
-import { Search, ChevronDown, ChevronUp, ChevronsUpDown, CheckCircle, XCircle, Filter, X, Copy, Check, Clock, DollarSign, Cpu, Hash, ArrowRight } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, ChevronsUpDown, CheckCircle, XCircle, Filter, X, Copy, Check, Clock, DollarSign, Cpu, Hash, ArrowRight, Download, ThumbsUp, ThumbsDown, Tag, Database } from 'lucide-react';
 import { getModelColor } from './MetricCards';
+import { DATASETS_STORAGE_KEY, loadDatasets } from './DatasetsView';
 
 const PAGE_SIZE = 25;
+
+/* ═══ Annotations Helper ═══ */
+function getAnnotationKey(log) {
+  return `rune_ann_${log.project_id || 'default'}_${log.timestamp}`;
+}
+
+function getAnnotation(log) {
+  try {
+    return JSON.parse(localStorage.getItem(getAnnotationKey(log))) || {};
+  } catch { return {}; }
+}
+
+function saveAnnotation(log, data) {
+  localStorage.setItem(getAnnotationKey(log), JSON.stringify(data));
+}
 
 /* ═══ Detail Drawer ═══ */
 function DetailDrawer({ log, onClose }) {
   const [copied, setCopied] = useState(null);
+  const [annotation, setAnnotation] = useState(() => getAnnotation(log));
+  const [tagInput, setTagInput] = useState('');
+  
+  // Datasets
+  const [showDsModal, setShowDsModal] = useState(false);
+  const [datasets] = useState(loadDatasets);
+  const [selectedDs, setSelectedDs] = useState('');
+
   if (!log) return null;
 
   const copy = (text, id) => {
@@ -114,7 +138,128 @@ function DetailDrawer({ log, onClose }) {
               <div className="drawer-code">{log.response || '(no response captured)'}</div>
             </div>
           )}
+
+          {/* Annotations */}
+          <div className="drawer-section">
+            <div className="drawer-section-header">
+              <span>Feedback & Testing</span>
+            </div>
+            <div className="annotation-controls" style={{ marginBottom: 12 }}>
+              <button
+                className={`ann-btn`}
+                onClick={() => setShowDsModal(true)}
+              >
+                <Database size={14} /> Save to Dataset
+              </button>
+            </div>
+            <div className="annotation-controls">
+              <button
+                className={`ann-btn ${annotation.rating === 'up' ? 'active-up' : ''}`}
+                onClick={() => {
+                  const next = { ...annotation, rating: annotation.rating === 'up' ? null : 'up' };
+                  setAnnotation(next);
+                  saveAnnotation(log, next);
+                }}
+              >
+                <ThumbsUp size={14} /> Good
+              </button>
+              <button
+                className={`ann-btn ${annotation.rating === 'down' ? 'active-down' : ''}`}
+                onClick={() => {
+                  const next = { ...annotation, rating: annotation.rating === 'down' ? null : 'down' };
+                  setAnnotation(next);
+                  saveAnnotation(log, next);
+                }}
+              >
+                <ThumbsDown size={14} /> Bad
+              </button>
+            </div>
+            <div className="annotation-tags">
+              {(annotation.tags || []).map(tag => (
+                <span key={tag} className="ann-tag">
+                  {tag}
+                  <button onClick={() => {
+                    const next = { ...annotation, tags: annotation.tags.filter(t => t !== tag) };
+                    setAnnotation(next);
+                    saveAnnotation(log, next);
+                  }}>×</button>
+                </span>
+              ))}
+              <form className="ann-tag-form" onSubmit={e => {
+                e.preventDefault();
+                if (!tagInput.trim()) return;
+                const tags = [...(annotation.tags || []), tagInput.trim()];
+                const next = { ...annotation, tags: [...new Set(tags)] };
+                setAnnotation(next);
+                saveAnnotation(log, next);
+                setTagInput('');
+              }}>
+                <Tag size={11} />
+                <input
+                  type="text"
+                  placeholder="Add tag..."
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  className="ann-tag-input"
+                />
+              </form>
+            </div>
+          </div>
         </div>
+
+        {/* Dataset Save Modal (layered above drawer) */}
+        {showDsModal && (
+          <div className="drawer-overlay" onClick={() => setShowDsModal(false)} style={{ zIndex: 1100 }}>
+            <div className="pg-modal" onClick={e => e.stopPropagation()} style={{ width: 400 }}>
+              <h3>Save to Dataset</h3>
+              <p>Add this log as a golden test case to a dataset.</p>
+              
+              <label className="pg-label" style={{ marginTop: 12 }}>Select Dataset</label>
+              {datasets.length === 0 ? (
+                <div style={{ fontSize: 13, color: 'var(--amber)', margin: '8px 0' }}>No datasets exist yet. Go to the Datasets tab to create one.</div>
+              ) : (
+                <select className="pg-select" value={selectedDs} onChange={e => setSelectedDs(e.target.value)}>
+                  <option value="">-- Choose Dataset --</option>
+                  {datasets.map(d => (
+                    <option key={d.id} value={d.id}>{d.name} ({d.rows?.length || 0} rows)</option>
+                  ))}
+                </select>
+              )}
+
+              <div style={{ marginTop: 24, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button className="prompt-tpl-btn secondary" onClick={() => setShowDsModal(false)}>Cancel</button>
+                <button 
+                  className="prompt-tpl-btn primary" 
+                  disabled={!selectedDs}
+                  onClick={() => {
+                    const dsList = loadDatasets();
+                    const target = dsList.find(d => d.id === selectedDs);
+                    if (target) {
+                      // Attempt to extract JSON from the prompt if it looks like JSON strings, otherwise just pass the raw prompt as 'input_text'
+                      let inputs = { input_text: log.prompt };
+                      if (log.prompt?.startsWith('{') && log.prompt?.endsWith('}')) {
+                        try { inputs = JSON.parse(log.prompt); } catch (e) {}
+                      }
+                      
+                      const row = {
+                        id: `row_${Date.now()}`,
+                        inputs,
+                        expected: log.response || ''
+                      };
+                      
+                      target.rows = [...(target.rows || []), row];
+                      localStorage.setItem(DATASETS_STORAGE_KEY, JSON.stringify(dsList));
+                      setShowDsModal(false);
+                      alert('Saved to dataset!');
+                    }
+                  }}
+                >
+                  <Save size={13} /> Save Row
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -232,6 +377,43 @@ export default function PromptLogTable({ logs, hasMore, onLoadMore, loading, ini
             <span className="entry-badge">{filtered.length} / {logs.length}</span>
           </div>
           <div className="table-toolbar-right">
+            <button
+              className="export-btn"
+              onClick={() => {
+                const csvRows = ['timestamp,model,function,latency_ms,prompt_tokens,completion_tokens,cost,status,prompt,response'];
+                filtered.forEach(l => {
+                  csvRows.push([
+                    new Date(l.timestamp * 1000).toISOString(),
+                    l.model || '', l.function_name || '',
+                    l.latency_ms || 0, l.prompt_tokens || 0, l.completion_tokens || 0,
+                    l.cost || 0, l.status || 'success',
+                    `"${(l.prompt || '').replace(/"/g, '""')}"`,
+                    `"${(l.response || '').replace(/"/g, '""')}"`
+                  ].join(','));
+                });
+                const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `runetrace_logs_${Date.now()}.csv`; a.click();
+                URL.revokeObjectURL(url);
+              }}
+              title="Export CSV"
+            >
+              <Download size={12} /> CSV
+            </button>
+            <button
+              className="export-btn"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(filtered, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `runetrace_logs_${Date.now()}.json`; a.click();
+                URL.revokeObjectURL(url);
+              }}
+              title="Export JSON"
+            >
+              <Download size={12} /> JSON
+            </button>
             <button
               className={`filter-toggle ${showFilters || activeFilterCount ? 'active' : ''}`}
               onClick={() => setShowFilters(!showFilters)}

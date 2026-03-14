@@ -32,6 +32,11 @@ OPTIONAL_FIELDS = {
     'prompt': str,
     'response': str,
     'function_name': str,
+    'session_id': str,
+    'trace_id': str,
+    'user_id': str,
+    'tags': list,
+    'metadata': dict,
 }
 
 

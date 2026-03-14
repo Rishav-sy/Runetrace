@@ -12,6 +12,8 @@ import os
 import atexit
 import asyncio
 from typing import Optional, Callable, Any
+import uuid
+import contextlib
 
 import requests
 
@@ -29,7 +31,14 @@ _config = {
     "flush_interval": 5.0,  # seconds
     "max_retries": 3,
     "enabled": True,
+    "user_id": os.environ.get("RUNETRACE_USER_ID", ""),
+    "session_id": "",
+    "tags": [],
+    "metadata": {},
 }
+
+# Thread-local storage for trace context
+_trace_context = threading.local()
 
 
 def configure(
@@ -40,6 +49,10 @@ def configure(
     flush_interval: float = None,
     max_retries: int = None,
     enabled: bool = None,
+    user_id: str = None,
+    session_id: str = None,
+    tags: list = None,
+    metadata: dict = None,
 ):
     """
     Configure the Runetrace SDK.
@@ -52,6 +65,10 @@ def configure(
         flush_interval: Seconds between automatic flushes (default: 5.0)
         max_retries: Max retry attempts on failure (default: 3)
         enabled: Whether tracking is enabled (default: True)
+        user_id: Optional user ID for per-user analytics
+        session_id: Optional session ID for grouping related calls
+        tags: Optional list of string tags for categorization
+        metadata: Optional dict of custom metadata
     """
     if api_url is not None:
         _config["api_url"] = api_url.rstrip("/")
@@ -67,6 +84,14 @@ def configure(
         _config["max_retries"] = max(0, max_retries)
     if enabled is not None:
         _config["enabled"] = enabled
+    if user_id is not None:
+        _config["user_id"] = user_id
+    if session_id is not None:
+        _config["session_id"] = session_id
+    if tags is not None:
+        _config["tags"] = list(tags)
+    if metadata is not None:
+        _config["metadata"] = dict(metadata)
 
     # Start the flush timer if not already running
     _BatchQueue.instance().ensure_timer_running()
@@ -273,8 +298,13 @@ def _capture_prompt(args, kwargs, capture: bool) -> str:
     """Extract prompt text from function arguments."""
     if not capture:
         return ""
-    if args and isinstance(args[0], str):
-        return args[0][:200]
+    if args:
+        if isinstance(args[0], str):
+            return args[0][:200]
+        elif isinstance(args[0], list) and len(args[0]) > 0:
+            last_msg = args[0][-1]
+            if isinstance(last_msg, dict):
+                return str(last_msg.get("content", ""))[:200]
     if "prompt" in kwargs:
         return str(kwargs["prompt"])[:200]
     if "messages" in kwargs:
@@ -287,7 +317,7 @@ def _capture_prompt(args, kwargs, capture: bool) -> str:
 
 
 def _build_payload(fn_name, info, latency_ms, prompt_text, cost):
-    return {
+    payload = {
         "project_id": _config["project_id"],
         "model": info["model"],
         "prompt_tokens": info["prompt_tokens"],
@@ -298,6 +328,40 @@ def _build_payload(fn_name, info, latency_ms, prompt_text, cost):
         "response": info.get("response", ""),
         "function_name": fn_name,
     }
+    # Add optional tracking fields
+    if _config.get("user_id"):
+        payload["user_id"] = _config["user_id"]
+    if _config.get("session_id"):
+        payload["session_id"] = _config["session_id"]
+    if _config.get("tags"):
+        payload["tags"] = _config["tags"]
+    if _config.get("metadata"):
+        payload["metadata"] = _config["metadata"]
+    # Add trace_id from context manager if active
+    trace_id = getattr(_trace_context, 'trace_id', None)
+    if trace_id:
+        payload["trace_id"] = trace_id
+    return payload
+
+
+@contextlib.contextmanager
+def trace(name: str = None):
+    """
+    Context manager to group nested LLM calls into a single trace.
+
+    Usage:
+        with runetrace.trace("my-rag-pipeline"):
+            result1 = call_embeddings(query)
+            result2 = call_llm(query, result1)
+            result3 = call_summarizer(result2)
+    """
+    trace_id = name or f"trace-{uuid.uuid4().hex[:12]}"
+    prev_trace = getattr(_trace_context, 'trace_id', None)
+    _trace_context.trace_id = trace_id
+    try:
+        yield trace_id
+    finally:
+        _trace_context.trace_id = prev_trace
 
 
 # ── Sync Decorator ──────────────────────────────────

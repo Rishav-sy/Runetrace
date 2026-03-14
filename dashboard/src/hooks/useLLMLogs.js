@@ -11,7 +11,7 @@ const TIME_RANGES = {
   'all': () => null,
 };
 
-export function useLLMLogs(projectId = 'default', timeRange = 'all') {
+export function useLLMLogs(projectId = 'live-demo', timeRange = 'all') {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
