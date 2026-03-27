@@ -3074,6 +3074,40 @@ body {
   font-family: var(--mono);
 }
 
+
+/* ═══════════════════════════════════════════════
+   PANEL COMPONENT STYLES
+   ═══════════════════════════════════════════════ */
+
+.panel {
+  background: var(--bg-card, rgba(255,255,255,0.02));
+  border: 1px solid var(--border, rgba(255,255,255,0.06));
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-dim, rgba(255,255,255,0.04));
+}
+
+.panel-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-1, #fff);
+  letter-spacing: -0.01em;
+}
+
+.panel-subtitle {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-3, rgba(255,255,255,0.35));
+}
+
 /* ═══════════════════════════════════════════════
    MODEL COMPARISON TABLE
    ═══════════════════════════════════════════════ */
@@ -3085,19 +3119,19 @@ body {
 }
 
 .mc-table th {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--text-3);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 6px 8px;
+  padding: 10px 10px;
   border-bottom: 1px solid var(--border);
   text-align: left;
   white-space: nowrap;
 }
 
 .mc-table td {
-  padding: 6px 8px;
+  padding: 10px 10px;
   border-bottom: 1px solid var(--border-dim);
   white-space: nowrap;
 }
@@ -3116,7 +3150,8 @@ body {
 }
 
 .mc-dim {
-  color: var(--text-3);
+  color: var(--text-2);
+  opacity: 0.65;
 }
 
 .mc-good {
@@ -3202,7 +3237,7 @@ body {
 }
 
 .ua-stat-label {
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-3);
   text-transform: uppercase;
   letter-spacing: 0.3px;

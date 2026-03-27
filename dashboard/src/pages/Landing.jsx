@@ -122,14 +122,14 @@ function HeroBG() {
    ═══════════════════════════════════ */
 function FadeIn({ children, className = '', delay = 0 }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-60px' });
+  const inView = useInView(ref, { once: true, margin: '-80px' });
   return (
     <motion.div
       ref={ref}
       className={className}
-      initial={{ opacity: 0, y: 32 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.7, delay, ease: [0.25, 1, 0.5, 1] }}
+      initial={{ opacity: 0, y: 40, scale: 0.96, filter: 'blur(8px)' }}
+      animate={inView ? { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' } : {}}
+      transition={{ duration: 0.8, delay, ease: [0.16, 1, 0.3, 1] }}
     >
       {children}
     </motion.div>
@@ -238,7 +238,8 @@ function BentoTraces() {
         </div>
       </div>
       <div className="ln-bento-visual bento-traces-vis">
-        <div className="ln-waterfall">
+        <div className="ln-bento-mockup">
+          <div className="ln-waterfall">
            {[
              { name: 'Agent Executor', w: '100%', ml: '0%', c: '#C8FF00', t: '2.4s' },
              { name: 'Retrieve Context', w: '30%', ml: '5%', c: '#448AFF', t: '0.8s' },
@@ -253,6 +254,7 @@ function BentoTraces() {
                <span className="ln-wf-time">{row.t}</span>
              </div>
            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -436,33 +438,56 @@ const deepDivesData = [
   }
 ];
 
-function StickyTextBlock({ data, index, progress, segments }) {
+function JourneyProgressBar({ progress }) {
+  const scaleX = useTransform(progress, [0, 1], [0, 1]);
+  return (
+    <div className="ln-journey-bar-track">
+      <motion.div className="ln-journey-bar-fill" style={{ scaleX, transformOrigin: 'left' }} />
+    </div>
+  );
+}
+
+function StickyTextBlock({ data, index, progress, segments, total }) {
   const [startIn, endIn, startOut, endOut] = segments[index];
-  const opacity = index === 3 
+  const isLast = index === total - 1;
+  const opacity = isLast
     ? useTransform(progress, [startIn, endIn], [0, 1])
     : useTransform(progress, [startIn, endIn, startOut, endOut], [0, 1, 1, 0]);
-    
-  const y = index === 3
-    ? useTransform(progress, [startIn, endIn], [40, 0])
-    : useTransform(progress, [startIn, endIn, startOut, endOut], [40, 0, 0, -40]);
-    
+
+  const y = isLast
+    ? useTransform(progress, [startIn, endIn], [36, 0])
+    : useTransform(progress, [startIn, endIn, startOut, endOut], [36, 0, 0, -28]);
+
   const pointerEvents = useTransform(opacity, (val) => val > 0.1 ? 'auto' : 'none');
+  const nextLabel = !isLast ? deepDivesData[index + 1]?.title : null;
 
   return (
     <motion.div className="ln-sticky-text-block" style={{ opacity, y, pointerEvents }}>
+      <div className="ln-journey-step">
+        <span className="ln-step-num">0{index + 1}</span>
+        <span className="ln-step-sep" />
+        <span className="ln-step-total">0{total}</span>
+      </div>
       <div className={`ln-deep-icon ${data.colorClass}`}>{data.icon}</div>
       <div className="ln-deep-text">
         <h2>{data.title}</h2>
         <p>{data.p}</p>
         <ul className="ln-deep-list">
           {data.ul.map((item, j) => (
-            <li key={j}><Check size={18} className={item.iconColor} /> <span>{item.text}</span></li>
+            <li key={j}><Check size={16} className={item.iconColor} /> <span>{item.text}</span></li>
           ))}
         </ul>
       </div>
+      {nextLabel && (
+        <div className="ln-journey-next">
+          <ArrowRight size={13} />
+          <span>{nextLabel}</span>
+        </div>
+      )}
     </motion.div>
   );
 }
+
 
 function StickyVisualBlock({ data, index, progress, segments }) {
   const [startIn, endIn, startOut, endOut] = segments[index];
@@ -516,20 +541,33 @@ function StickyDeepDives() {
   });
   const smoothProgress = useSpring(scrollYProgress, { stiffness: 300, damping: 30, restDelta: 0.001 });
 
-  const segments = [
-    [0, 0, 0.15, 0.25],       
-    [0.15, 0.25, 0.40, 0.50], 
-    [0.40, 0.50, 0.65, 0.75], 
-    [0.65, 0.75, 1, 1]        
-  ];
+  const n = deepDivesData.length;
+  const segSize = 1 / n;
+  const inDur = segSize * 0.4;
+  const outDur = segSize * 0.35;
+  const segments = deepDivesData.map((_, i) => [
+    i * segSize,
+    i * segSize + inDur,
+    (i + 1) * segSize - outDur,
+    (i + 1) * segSize
+  ]);
+  // last segment stays until end
+  segments[n - 1][2] = 1;
+  segments[n - 1][3] = 1;
 
   return (
     <section ref={containerRef} className="ln-sticky-wrapper">
       <div className="ln-sticky-pinned">
+        {/* Top progress bar */}
+        <JourneyProgressBar progress={smoothProgress} />
+
+        {/* Section label */}
+        <div className="ln-journey-label">The Platform</div>
+
         <div className="ln-sticky-inner">
           <div className="ln-sticky-left">
             {deepDivesData.map((d, i) => (
-              <StickyTextBlock key={i} data={d} index={i} progress={smoothProgress} segments={segments} />
+              <StickyTextBlock key={i} data={d} index={i} progress={smoothProgress} segments={segments} total={n} />
             ))}
           </div>
           <div className="ln-sticky-right">
@@ -539,20 +577,23 @@ function StickyDeepDives() {
           </div>
         </div>
 
-        {/* Navigation Dots */}
+        {/* Step dots (bottom left) */}
         <div className="ln-sticky-nav">
-          {deepDivesData.map((_, i) => (
-            <NavDot key={i} index={i} progress={smoothProgress} segments={segments} />
-          ))}
+          {deepDivesData.map((_, i) => {
+            const [s, e] = [segments[i][0], segments[i][1]];
+            const active = useTransform(smoothProgress, [s, Math.min(e + 0.01, 1)], [0.25, 1]);
+            const w = useTransform(active, [0.25, 1], [6, 24]);
+            return <motion.div key={i} className="ln-nav-dot" style={{ opacity: active, width: w }} />;
+          })}
         </div>
 
-        {/* Dynamic Glow Spots */}
-        <motion.div 
+        {/* Ambient glow */}
+        <motion.div
           className="ln-sticky-glow"
           style={{
-            top: useTransform(smoothProgress, [0, 1], ['20%', '80%']),
-            left: useTransform(smoothProgress, [0, 1], ['70%', '30%']),
-            opacity: useTransform(smoothProgress, [0, 0.2, 0.8, 1], [0, 0.4, 0.4, 0]),
+            top: useTransform(smoothProgress, [0, 1], ['30%', '70%']),
+            left: useTransform(smoothProgress, [0, 1], ['65%', '35%']),
+            opacity: useTransform(smoothProgress, [0, 0.1, 0.9, 1], [0, 0.3, 0.3, 0]),
           }}
         />
       </div>
@@ -622,6 +663,30 @@ export default function Landing() {
         </FadeIn>
       </section>
 
+      {/* ── How It Works ── */}
+      <section className="ln-how-section">
+        <FadeIn>
+          <div className="ln-section-head">
+            <p className="ln-label">Get started</p>
+            <h2 className="ln-h2">Three steps.<br /><span className="ln-accent">Five minutes.</span></h2>
+          </div>
+        </FadeIn>
+        <div className="ln-steps-row">
+          {[
+            { num: '01', title: 'Install the SDK', code: 'pip install runetrace', desc: 'One pip install. Zero config files. Works with any Python project.' },
+            { num: '02', title: 'Add the decorator', code: '@trace', desc: 'Wrap any function with @trace to start capturing calls automatically.' },
+            { num: '03', title: 'See everything', code: 'localhost:5173', desc: 'Every call, model, cost, and latency — visualized in real time.' },
+          ].map((step, i) => (
+            <FadeIn key={step.num} delay={i * 0.12} className="ln-step-card">
+              <div className="ln-step-badge">{step.num}</div>
+              <h3 className="ln-step-title">{step.title}</h3>
+              <code className="ln-step-code">{step.code}</code>
+              <p className="ln-step-desc">{step.desc}</p>
+            </FadeIn>
+          ))}
+        </div>
+      </section>
+
       {/* ── Metrics strip ── */}
       <section className="ln-metrics">
         <FadeIn>
@@ -644,9 +709,10 @@ export default function Landing() {
       {/* ── Features Bento Box ── */}
       <section className="ln-features" id="features">
         <FadeIn>
-          <div className="ln-section-head">
+          <div className="ln-section-head ln-section-head--wide">
             <p className="ln-label">Platform</p>
             <h2 className="ln-h2">Enterprise-grade tooling.<br /><span className="ln-accent">Zero dollars.</span></h2>
+            <p className="ln-section-subtitle">Four tightly-integrated modules that give you complete visibility into your AI pipeline — from first prompt to production rollout.</p>
           </div>
         </FadeIn>
         
@@ -676,37 +742,159 @@ export default function Landing() {
       {/* ── Deep Dives ── */}
       <StickyDeepDives />
 
-      {/* ── Dashboard preview ── */}
+      {/* ── Integrations ── */}
+      <section className="ln-integrations">
+        <FadeIn>
+          <div className="ln-section-head">
+            <p className="ln-label">Integrations</p>
+            <h2 className="ln-h2">Works with every model<br /><span className="ln-accent">you already use.</span></h2>
+          </div>
+        </FadeIn>
+        <FadeIn delay={0.15}>
+          <div className="ln-logo-cloud">
+            {['OpenAI', 'Anthropic', 'Google Gemini', 'Meta Llama', 'Mistral', 'Cohere', 'Groq', 'AWS Bedrock'].map(name => (
+              <div key={name} className="ln-logo-item">
+                <span>{name}</span>
+              </div>
+            ))}
+          </div>
+          <p className="ln-integrations-note">Auto-detected. No extra config needed — just call your model.</p>
+        </FadeIn>
+      </section>
+
+      {/* ── Why Self-Hosted ── */}
+      <section className="ln-comparison">
+        <FadeIn>
+          <div className="ln-section-head">
+            <p className="ln-label">Why self-hosted?</p>
+            <h2 className="ln-h2">Your data stays<br /><span className="ln-accent">where you put it.</span></h2>
+          </div>
+        </FadeIn>
+        <FadeIn delay={0.1}>
+          <div className="ln-comparison-table">
+            <div className="ln-comparison-col ln-comparison-other">
+              <h3>SaaS Observability</h3>
+              <ul>
+                <li className="ln-comp-bad"><span>✕</span> Prompts sent to third-party servers</li>
+                <li className="ln-comp-bad"><span>✕</span> $49–399/mo per seat</li>
+                <li className="ln-comp-bad"><span>✕</span> Usage caps and overage charges</li>
+                <li className="ln-comp-bad"><span>✕</span> Vendor lock-in on proprietary formats</li>
+                <li className="ln-comp-bad"><span>✕</span> SOC 2 compliance on their terms</li>
+              </ul>
+            </div>
+            <div className="ln-comparison-col ln-comparison-us">
+              <h3>Runetrace <span className="ln-comp-badge">Self-hosted</span></h3>
+              <ul>
+                <li className="ln-comp-good"><span>✓</span> Data never leaves your VPC</li>
+                <li className="ln-comp-good"><span>✓</span> $0/month on AWS Free Tier</li>
+                <li className="ln-comp-good"><span>✓</span> Unlimited calls, no caps</li>
+                <li className="ln-comp-good"><span>✓</span> Open source, no lock-in</li>
+                <li className="ln-comp-good"><span>✓</span> Your infra, your compliance</li>
+              </ul>
+            </div>
+          </div>
+        </FadeIn>
+      </section>
 
       {/* ── Pricing ── */}
       <section className="ln-pricing" id="pricing">
         <FadeIn>
           <div className="ln-section-head">
             <p className="ln-label">Pricing</p>
-            <h2 className="ln-h2">Free. <span className="ln-accent">Actually free.</span></h2>
+            <h2 className="ln-h2">Start free.<br /><span className="ln-accent">Scale when ready.</span></h2>
+            <p className="ln-section-subtitle" style={{textAlign:'center'}}>Self-host for free forever, or let us handle the infra. No credit card required.</p>
           </div>
         </FadeIn>
-        <FadeIn delay={0.1}>
-          <div className="ln-price-card">
-            <div className="ln-price-top">
-              <span className="ln-price-amount">$0</span>
-              <span className="ln-price-period">/month forever</span>
+
+        <div className="ln-pricing-grid">
+          {/* Self-Hosted */}
+          <FadeIn delay={0.05} className="ln-tier-card">
+            <div className="ln-tier-header">
+              <span className="ln-tier-name">Self-Hosted</span>
+              <p className="ln-tier-tagline">Full control, your infrastructure</p>
             </div>
-            <ul className="ln-price-list">
-              {[
-                [Zap, 'Unlimited LLM calls'],
-                [Activity, 'Real-time dashboard'],
-                [Shield, 'Self-hosted on your AWS'],
-                [Terminal, 'Python SDK with async'],
-                [BarChart3, '30+ model pricing'],
-                [Code2, '100% open source'],
-              ].map(([Icon, text]) => (
-                <li key={text}><Icon size={14} /> {text}</li>
-              ))}
-            </ul>
-            <Link to="/dashboard" className="ln-btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-              Get Started <ArrowRight size={15} />
+            <div className="ln-tier-price">
+              <span className="ln-tier-amount">$0</span>
+              <span className="ln-tier-period">/month forever</span>
+            </div>
+            <Link to="/dashboard" className="ln-tier-cta ln-tier-cta--outline">
+              Deploy Now <ArrowRight size={14} />
             </Link>
+            <ul className="ln-tier-features">
+              <li><Check size={14} /> Unlimited LLM calls</li>
+              <li><Check size={14} /> Real-time dashboard</li>
+              <li><Check size={14} /> Python SDK with async</li>
+              <li><Check size={14} /> 30+ model pricing built-in</li>
+              <li><Check size={14} /> Runs on your AWS account</li>
+              <li><Check size={14} /> 100% open source</li>
+              <li><Check size={14} /> Community support</li>
+            </ul>
+          </FadeIn>
+
+          {/* Cloud — Featured */}
+          <FadeIn delay={0.15} className="ln-tier-card ln-tier-card--featured">
+            <div className="ln-tier-badge-wrap">
+              <span className="ln-tier-popular">Recommended</span>
+            </div>
+            <div className="ln-tier-header">
+              <span className="ln-tier-name">Cloud</span>
+              <p className="ln-tier-tagline">We handle the infra. You build.</p>
+            </div>
+            <div className="ln-tier-price">
+              <span className="ln-tier-amount">$29</span>
+              <span className="ln-tier-period">/month per project</span>
+            </div>
+            <button className="ln-tier-cta ln-tier-cta--primary" disabled>
+              Coming Soon
+            </button>
+            <ul className="ln-tier-features">
+              <li><Check size={14} /> <strong>Everything in Self-Hosted</strong></li>
+              <li><Check size={14} /> No AWS account needed</li>
+              <li><Check size={14} /> One-click setup, instant start</li>
+              <li><Check size={14} /> Managed database & hosting</li>
+              <li><Check size={14} /> Automatic updates & patches</li>
+              <li><Check size={14} /> 99.9% uptime SLA</li>
+              <li><Check size={14} /> Priority email support</li>
+              <li><Check size={14} /> Team collaboration (5 seats)</li>
+            </ul>
+          </FadeIn>
+
+          {/* Enterprise */}
+          <FadeIn delay={0.25} className="ln-tier-card">
+            <div className="ln-tier-header">
+              <span className="ln-tier-name">Enterprise</span>
+              <p className="ln-tier-tagline">For teams with advanced needs</p>
+            </div>
+            <div className="ln-tier-price">
+              <span className="ln-tier-amount">Custom</span>
+              <span className="ln-tier-period">&nbsp;</span>
+            </div>
+            <a href="mailto:rishav@runetrace.dev" className="ln-tier-cta ln-tier-cta--outline">
+              Contact Sales <ArrowRight size={14} />
+            </a>
+            <ul className="ln-tier-features">
+              <li><Check size={14} /> <strong>Everything in Cloud</strong></li>
+              <li><Check size={14} /> Unlimited seats</li>
+              <li><Check size={14} /> SSO / SAML authentication</li>
+              <li><Check size={14} /> Role-based access control</li>
+              <li><Check size={14} /> Dedicated infrastructure</li>
+              <li><Check size={14} /> Custom data retention</li>
+              <li><Check size={14} /> Dedicated Slack channel</li>
+              <li><Check size={14} /> SLA & uptime guarantees</li>
+            </ul>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* ── Final CTA ── */}
+      <section className="ln-final-cta">
+        <div className="ln-final-cta-glow" />
+        <FadeIn>
+          <h2 className="ln-final-heading">Ship with<br /><span className="ln-accent">confidence.</span></h2>
+          <p className="ln-final-sub">Join developers who trust Runetrace for production AI observability.</p>
+          <div className="ln-hero-actions">
+            <Link to="/dashboard" className="ln-btn-primary">Open Dashboard <ArrowRight size={15} /></Link>
+            <a href="https://github.com/rishavsy/runetrace" target="_blank" rel="noreferrer" className="ln-btn-secondary"><Github size={15} /> Star on GitHub</a>
           </div>
         </FadeIn>
       </section>
