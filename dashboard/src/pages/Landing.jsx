@@ -452,11 +452,15 @@ function StickyTextBlock({ data, index, progress, segments, total }) {
   const isLast = index === total - 1;
   const opacity = isLast
     ? useTransform(progress, [startIn, endIn], [0, 1])
-    : useTransform(progress, [startIn, endIn, startOut, endOut], [0, 1, 1, 0]);
+    : index === 0
+      ? useTransform(progress, [startIn, endIn, startOut, endOut], [1, 1, 1, 0])
+      : useTransform(progress, [startIn, endIn, startOut, endOut], [0, 1, 1, 0]);
 
   const y = isLast
     ? useTransform(progress, [startIn, endIn], [36, 0])
-    : useTransform(progress, [startIn, endIn, startOut, endOut], [36, 0, 0, -28]);
+    : index === 0
+      ? useTransform(progress, [startIn, endIn, startOut, endOut], [0, 0, 0, -28])
+      : useTransform(progress, [startIn, endIn, startOut, endOut], [36, 0, 0, -28]);
 
   const pointerEvents = useTransform(opacity, (val) => val > 0.1 ? 'auto' : 'none');
   const nextLabel = !isLast ? deepDivesData[index + 1]?.title : null;
@@ -493,15 +497,21 @@ function StickyVisualBlock({ data, index, progress, segments }) {
   const [startIn, endIn, startOut, endOut] = segments[index];
   const opacity = index === 3 
     ? useTransform(progress, [startIn, endIn], [0, 1])
-    : useTransform(progress, [startIn, endIn, startOut, endOut], [0, 1, 1, 0]);
+    : index === 0
+      ? useTransform(progress, [startIn, endIn, startOut, endOut], [1, 1, 1, 0])
+      : useTransform(progress, [startIn, endIn, startOut, endOut], [0, 1, 1, 0]);
     
   const scale = index === 3
     ? useTransform(progress, [startIn, endIn], [0.95, 1])
-    : useTransform(progress, [startIn, endIn, startOut, endOut], [0.95, 1, 1, 0.95]);
+    : index === 0
+      ? useTransform(progress, [startIn, endIn, startOut, endOut], [1, 1, 1, 0.95])
+      : useTransform(progress, [startIn, endIn, startOut, endOut], [0.95, 1, 1, 0.95]);
 
   const rotateX = index === 3
     ? useTransform(progress, [startIn, endIn], [10, 0])
-    : useTransform(progress, [startIn, endIn, startOut, endOut], [10, 0, 0, -10]);
+    : index === 0
+      ? useTransform(progress, [startIn, endIn, startOut, endOut], [0, 0, 0, -10])
+      : useTransform(progress, [startIn, endIn, startOut, endOut], [10, 0, 0, -10]);
     
   const pointerEvents = useTransform(opacity, (val) => val > 0.1 ? 'auto' : 'none');
 
