@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Brain, Play, CheckCircle, XCircle, AlertTriangle, Loader, BarChart2, RefreshCw, ChevronDown, Settings } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 
@@ -41,6 +41,38 @@ export default function AutoEval({ logs }) {
   const [showSettings, setShowSettings] = useState(false);
   const [sampleSize, setSampleSize] = useState(10);
   const [error, setError] = useState(null);
+  const [evalLogs, setEvalLogs] = useState([]);
+  const [showTerminal, setShowTerminal] = useState(false);
+
+  const terminalRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
+  const userScrolledRef = useRef(false);
+
+  useEffect(() => {
+    if (terminalRef.current && !userScrolledRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [evalLogs]);
+
+  const handleTerminalScroll = () => {
+    if (!terminalRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = terminalRef.current;
+    const isAtBottom = scrollHeight - scrollTop <= clientHeight + 10;
+    
+    if (isAtBottom) {
+      userScrolledRef.current = false;
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    } else {
+      userScrolledRef.current = true;
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = setTimeout(() => {
+        userScrolledRef.current = false;
+        if (terminalRef.current) {
+          terminalRef.current.scrollTo({ top: terminalRef.current.scrollHeight, behavior: 'smooth' });
+        }
+      }, 1000);
+    }
+  };
 
   const apiKey = localStorage.getItem(`${KEY_PREFIX}${judgeModel.provider}`) || '';
 
@@ -106,23 +138,21 @@ export default function AutoEval({ logs }) {
 
     setRunning(true);
     setError(null);
+    setEvalLogs([`[SYSTEM] Initializing Auto-Eval with ${judgeModel.label}...`, `[INFO] Selected ${sample.length} logs for evaluation against ${activeCriteria.length} criteria.`]);
     setProgress({ done: 0, total: sample.length * activeCriteria.length });
+    setShowTerminal(true);
 
     const newResults = [];
     let done = 0;
 
-    for (const log of sample) {
+    for (let i = 0; i < sample.length; i++) {
+      const log = sample[i];
       const scores = {};
+      setEvalLogs(prev => [...prev, `[PROCESS] Evaluating log ${i + 1}/${sample.length} (ID: ${log.trace_id?.slice(0, 8) || 'unknown'})`]);
 
       for (const criterion of activeCriteria) {
         try {
-          const judgePrompt = `You are an evaluation judge. Given the following prompt and response, ${criterion.prompt}
-
-PROMPT: ${(log.prompt || '').slice(0, 500)}
-
-RESPONSE: ${(log.response || '').slice(0, 1000)}
-
-Return ONLY a single number from 1 to 5.`;
+          const judgePrompt = `You are an evaluation judge. Given the following prompt and response, ${criterion.prompt}\n\nPROMPT: ${(log.prompt || '').slice(0, 500)}\n\nRESPONSE: ${(log.response || '').slice(0, 1000)}\n\nReturn ONLY a single number from 1 to 5.`;
 
           const res = await fetch(providerUrl, {
             method: 'POST',
@@ -138,8 +168,10 @@ Return ONLY a single number from 1 to 5.`;
           const text = data.choices?.[0]?.message?.content?.trim() || '';
           const score = parseInt(text);
           scores[criterion.id] = (score >= 1 && score <= 5) ? score : 3;
+          setEvalLogs(prev => [...prev, `  ↳ [SUCCESS] ${criterion.name}: Scored ${scores[criterion.id]}/5`]);
         } catch {
           scores[criterion.id] = 0; // failed
+          setEvalLogs(prev => [...prev, `  ↳ [ERROR] ${criterion.name}: API request failed`]);
         }
         done++;
         setProgress({ done, total: sample.length * activeCriteria.length });
@@ -158,6 +190,7 @@ Return ONLY a single number from 1 to 5.`;
     setResults(newResults);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newResults));
     setRunning(false);
+    setEvalLogs(prev => [...prev, `[SYSTEM] Evaluation complete. Saved ${newResults.length} results.`]);
   }, [logs, apiKey, judgeModel, selectedCriteria, sampleSize]);
 
   const scoreColor = (score) => {
@@ -172,7 +205,10 @@ Return ONLY a single number from 1 to 5.`;
       <div className="panel-header">
         <span className="panel-title"><Brain size={14} /> Auto-Eval (LLM-as-Judge)</span>
         <div style={{ display: 'flex', gap: 6 }}>
-          <button className="prompt-tpl-btn tiny" onClick={() => setShowSettings(!showSettings)}>
+          <button className={`prompt-tpl-btn tiny ${showTerminal ? 'active' : ''}`} onClick={() => setShowTerminal(!showTerminal)}>
+            <ChevronDown size={11} style={{ transform: showTerminal ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} /> Logs
+          </button>
+          <button className={`prompt-tpl-btn tiny ${showSettings ? 'active' : ''}`} onClick={() => setShowSettings(!showSettings)}>
             <Settings size={11} /> Configure
           </button>
           <button
@@ -180,10 +216,35 @@ Return ONLY a single number from 1 to 5.`;
             onClick={runEval}
             disabled={running || !selectedCriteria.length}
           >
-            {running ? <><Loader size={11} className="spin" /> {progress.done}/{progress.total}</> : <><Play size={11} /> Run Eval</>}
+            {running ? <><Loader size={11} className="spin" /> {progress.done}/{progress.total} evals</> : <><Play size={11} /> Run Eval</>}
           </button>
         </div>
       </div>
+
+      {showTerminal && (
+        <div 
+          className="autoeval-terminal" 
+          ref={terminalRef}
+          onScroll={handleTerminalScroll}
+          style={{
+            background: '#0a0a0a', border: '1px solid var(--border)', borderRadius: 6, margin: '8px 0',
+            padding: '12px', fontFamily: 'var(--mono)', fontSize: '10px', color: 'var(--text-2)',
+            maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px'
+          }}>
+          {evalLogs.length === 0 ? (
+            <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>No logs yet. Run an evaluation to see progress.</span>
+          ) : (
+            evalLogs.map((log, i) => {
+              let color = 'var(--text-2)';
+              if (log.includes('[SUCCESS]')) color = 'var(--green)';
+              if (log.includes('[ERROR]')) color = 'var(--red)';
+              if (log.includes('[SYSTEM]')) color = 'var(--lime)';
+              if (log.includes('[PROCESS]')) color = 'var(--text)';
+              return <div key={i} style={{ color }}>{log}</div>;
+            })
+          )}
+        </div>
+      )}
 
       {error && <div className="pg-error" style={{ margin: '8px 0' }}><span>{error}</span></div>}
 
@@ -209,14 +270,23 @@ Return ONLY a single number from 1 to 5.`;
 
           <div className="autoeval-setting-row">
             <label className="autoeval-setting-label">Sample Size</label>
-            <input
-              type="number"
-              value={sampleSize}
-              onChange={e => setSampleSize(Math.max(1, Math.min(50, parseInt(e.target.value) || 10)))}
-              className="alert-threshold-input"
-              style={{ width: 50 }}
-              min={1} max={50}
-            />
+            <div className="rune-stepper">
+              <button 
+                className="rune-stepper-btn"
+                onClick={() => setSampleSize(Math.max(1, sampleSize - 1))}
+              >−</button>
+              <input
+                type="number"
+                value={sampleSize}
+                onChange={e => setSampleSize(Math.max(1, Math.min(50, parseInt(e.target.value) || 10)))}
+                className="rune-stepper-input"
+                min={1} max={50}
+              />
+              <button 
+                className="rune-stepper-btn"
+                onClick={() => setSampleSize(Math.min(50, sampleSize + 1))}
+              >+</button>
+            </div>
             <span className="autoeval-setting-hint">of {logs.filter(l => l.response && l.prompt).length} evaluable logs</span>
           </div>
 

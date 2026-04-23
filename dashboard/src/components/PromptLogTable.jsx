@@ -277,14 +277,8 @@ export default function PromptLogTable({ logs, hasMore, onLoadMore, loading, ini
   const [filterModel, setFilterModel] = useState(initialFilters.model || '');
   const [filterFn, setFilterFn] = useState(initialFilters.function || '');
   const [filterStatus, setFilterStatus] = useState(initialFilters.status || '');
-  const [showFilters, setShowFilters] = useState(!!(initialFilters.model || initialFilters.function || initialFilters.status));
-
-  // Sync external filter changes
-  const prevKey = useState('')[0];
-  const filterKey = `${initialFilters.model}|${initialFilters.function}|${initialFilters.status}`;
-  if (filterKey !== prevKey && filterKey !== '||') {
-    // Applied from external source (chart click)
-  }
+  const [filterTimeWindow, setFilterTimeWindow] = useState(initialFilters.timeWindow || null);
+  const [showFilters, setShowFilters] = useState(!!(initialFilters.model || initialFilters.function || initialFilters.status || initialFilters.timeWindow));
 
   // Unique values for filter dropdowns
   const models = useMemo(() => [...new Set(logs.map(l => l.model).filter(Boolean))].sort(), [logs]);
@@ -295,9 +289,10 @@ export default function PromptLogTable({ logs, hasMore, onLoadMore, loading, ini
     if (initialFilters.model !== undefined) setFilterModel(initialFilters.model || '');
     if (initialFilters.function !== undefined) setFilterFn(initialFilters.function || '');
     if (initialFilters.status !== undefined) setFilterStatus(initialFilters.status || '');
-    if (initialFilters.model || initialFilters.function || initialFilters.status) setShowFilters(true);
+    if (initialFilters.timeWindow !== undefined) setFilterTimeWindow(initialFilters.timeWindow || null);
+    if (initialFilters.model || initialFilters.function || initialFilters.status || initialFilters.timeWindow) setShowFilters(true);
     setPage(0);
-  }, [initialFilters.model, initialFilters.function, initialFilters.status]);
+  }, [initialFilters.model, initialFilters.function, initialFilters.status, initialFilters.timeWindow]);
 
   // Filter + Search
   const filtered = useMemo(() => {
@@ -306,6 +301,14 @@ export default function PromptLogTable({ logs, hasMore, onLoadMore, loading, ini
       if (filterFn && l.function_name !== filterFn) return false;
       if (filterStatus === 'success' && l.status === 'error') return false;
       if (filterStatus === 'error' && l.status !== 'error') return false;
+      if (filterTimeWindow) {
+        const d = new Date((l.timestamp || 0) * 1000);
+        const jsDay = d.getDay();
+        const logDay = jsDay === 0 ? 6 : jsDay - 1; // Map Sunday=0 to 6, Monday=1 to 0
+        if (logDay !== filterTimeWindow.day || d.getHours() !== filterTimeWindow.hour) {
+          return false;
+        }
+      }
       if (searchTerm) {
         const q = searchTerm.toLowerCase();
         return (l.prompt || '').toLowerCase().includes(q) ||
@@ -314,7 +317,7 @@ export default function PromptLogTable({ logs, hasMore, onLoadMore, loading, ini
       }
       return true;
     });
-  }, [logs, filterModel, filterFn, filterStatus, searchTerm]);
+  }, [logs, filterModel, filterFn, filterStatus, filterTimeWindow, searchTerm]);
 
   // Sort
   const sorted = useMemo(() => {
@@ -360,10 +363,10 @@ export default function PromptLogTable({ logs, hasMore, onLoadMore, loading, ini
 
   const latColor = (ms) => ms < 500 ? 'var(--green)' : ms < 1500 ? 'var(--amber)' : 'var(--red)';
   const latPct = (ms) => Math.min(100, (ms / 4000) * 100);
-  const activeFilterCount = [filterModel, filterFn, filterStatus].filter(Boolean).length;
+  const activeFilterCount = [filterModel, filterFn, filterStatus, filterTimeWindow].filter(Boolean).length;
 
   const clearFilters = () => {
-    setFilterModel(''); setFilterFn(''); setFilterStatus(''); setSearchTerm('');
+    setFilterModel(''); setFilterFn(''); setFilterStatus(''); setSearchTerm(''); setFilterTimeWindow(null);
     setPage(0);
     if (onFilterChange) onFilterChange({});
   };
@@ -437,6 +440,12 @@ export default function PromptLogTable({ logs, hasMore, onLoadMore, loading, ini
         {/* Filter bar */}
         {showFilters && (
           <div className="filter-bar">
+            {filterTimeWindow && (
+              <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(200, 255, 0, 0.1)', color: 'var(--lime)', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, border: '1px solid rgba(200, 255, 0, 0.2)' }}>
+                <Clock size={11} style={{ marginRight: 4 }} />
+                {filterTimeWindow.label}
+              </div>
+            )}
             <select value={filterModel} onChange={e => { setFilterModel(e.target.value); setPage(0); }} className="filter-select">
               <option value="">All models</option>
               {models.map(m => <option key={m} value={m}>{m}</option>)}

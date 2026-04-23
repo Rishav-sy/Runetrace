@@ -58,6 +58,13 @@ def lambda_handler(event, context):
         start_time = params.get('start_time')  # Unix timestamp
         end_time = params.get('end_time')      # Unix timestamp
 
+        # ── Auth & RBAC Check (Phase 2) ─────────────
+        # Extract the Cognito User ID (sub) passed from API Gateway JWT Authorizer
+        user_id = event.get('requestContext', {}).get('authorizer', {}).get('jwt', {}).get('claims', {}).get('sub')
+        
+        # TODO: Lookup `project_id` ownership mapping in a new DynamoDB table
+        # to ensure `user_id` actually owns or is part of an org that owns `project_id`.
+
         # Build key condition
         if start_time and end_time:
             key_condition = (

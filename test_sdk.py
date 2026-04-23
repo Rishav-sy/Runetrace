@@ -1,98 +1,144 @@
 """
-Test script for the Runetrace SDK.
-Simulates an LLM response and verifies the decorator sends data to the live API.
+Runetrace SDK Test — Bulk Data Seeder
+Pushes ~100 realistic LLM log entries across multiple models, users,
+time ranges, and latencies so the Analytics dashboard looks populated.
 """
 import time
 import sys
 import os
-
-# Add SDK to path for local testing
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "sdk"))
-
-import runetrace
-from runetrace.pricing import get_cost
-
-# --- Test 1: Pricing calculation ---
-print("=" * 50)
-print("TEST 1: Pricing Calculation")
-print("=" * 50)
-
-cost = get_cost("gpt-4o", prompt_tokens=1000, completion_tokens=500)
-print(f"GPT-4o (1K in, 500 out): ${cost:.6f}")
-assert cost > 0, "Cost should be positive"
-
-cost2 = get_cost("claude-3.5-sonnet", prompt_tokens=2000, completion_tokens=1000)
-print(f"Claude 3.5 Sonnet (2K in, 1K out): ${cost2:.6f}")
-assert cost2 > 0, "Cost should be positive"
-
-cost3 = get_cost("unknown-model-xyz", prompt_tokens=100, completion_tokens=100)
-print(f"Unknown model: ${cost3:.6f}")
-assert cost3 == 0.0, "Unknown model should return 0 cost"
-
-print("✅ Pricing tests passed!\n")
-
-# --- Test 2: Decorator with mock LLM response ---
-print("=" * 50)
-print("TEST 2: Decorator + Live API")
-print("=" * 50)
-
-API_URL = "https://efy27iqiuf.execute-api.us-east-1.amazonaws.com"
-runetrace.configure(api_url=API_URL, project_id="sdk-test")
-
-
-# Simulate an OpenAI-like response object
-class MockUsage:
-    prompt_tokens = 250
-    completion_tokens = 100
-
-class MockMessage:
-    content = "The meaning of life is to find purpose and joy."
-
-class MockChoice:
-    message = MockMessage()
-
-class MockResponse:
-    usage = MockUsage()
-    model = "gpt-4o"
-    choices = [MockChoice()]
-
-
-@runetrace.track_llm
-def fake_llm_call(prompt):
-    """Simulates an LLM call returning a mock OpenAI response."""
-    time.sleep(0.1)  # Simulate some latency
-    return MockResponse()
-
-
-result = fake_llm_call("What is the meaning of life?")
-print(f"Model: {result.model}")
-print(f"Tokens: {result.usage.prompt_tokens} in, {result.usage.completion_tokens} out")
-print(f"Response: {result.choices[0].message.content}")
-
-# Wait for background thread to send the log
-time.sleep(2)
-
-# --- Test 3: Verify the log arrived in DynamoDB ---
-print("\n" + "=" * 50)
-print("TEST 3: Verify Log in API")
-print("=" * 50)
-
+import random
 import requests
-resp = requests.get(f"{API_URL}/logs?project_id=sdk-test")
-data = resp.json()
-logs = data.get("logs", [])
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
 
-print(f"Found {len(logs)} log(s) for project 'sdk-test'")
-if logs:
-    latest = max(logs, key=lambda x: x["timestamp"])
-    print(f"  Model: {latest['model']}")
-    print(f"  Prompt tokens: {latest['prompt_tokens']}")
-    print(f"  Completion tokens: {latest['completion_tokens']}")
-    print(f"  Latency: {latest['latency_ms']}ms")
-    print(f"  Cost: ${latest['cost']}")
-    print(f"  Function: {latest.get('function_name', 'N/A')}")
-    print("✅ Log verified in DynamoDB!")
-else:
-    print("❌ No logs found — check API or wait for propagation")
+load_dotenv("dashboard/.env.local")
 
-print("\n✅ All tests passed!")
+SUPABASE_URL = os.environ.get("VITE_SUPABASE_URL")
+SUPABASE_ANON = os.environ.get("VITE_SUPABASE_ANON_KEY")
+
+if not SUPABASE_URL:
+    print("❌ VITE_SUPABASE_URL not found in dashboard/.env.local")
+    sys.exit(1)
+
+print("=" * 55)
+print("  RUNETRACE — Analytics Data Seeder")
+print("=" * 55)
+print(f"\nTarget: {SUPABASE_URL}")
+print("Go to your Runetrace Dashboard → Settings → Copy your 'rt_live...' API Key.")
+api_key = input("Paste your API Key here: ").strip()
+
+# ── Config ───────────────────────────────────────────
+MODELS = [
+    {"name": "gpt-4o",            "input_rate": 5.0,  "output_rate": 15.0,  "avg_latency": 1200},
+    {"name": "gpt-4o-mini",       "input_rate": 0.15, "output_rate": 0.60,  "avg_latency": 400},
+    {"name": "claude-3.5-sonnet", "input_rate": 3.0,  "output_rate": 15.0,  "avg_latency": 1800},
+    {"name": "claude-3-haiku",    "input_rate": 0.25, "output_rate": 1.25,  "avg_latency": 300},
+    {"name": "gemini-1.5-pro",    "input_rate": 3.5,  "output_rate": 10.5,  "avg_latency": 900},
+]
+
+FUNCTIONS = ["chat_completion", "summarize_doc", "translate_text", "extract_entities", "generate_code", "analyze_sentiment"]
+USERS = ["user_alice", "user_bob", "user_carol", "user_dave", "anonymous"]
+PROMPTS = [
+    "What is the meaning of life?",
+    "Summarize this quarterly report in 3 bullet points.",
+    "Translate 'hello world' into Japanese.",
+    "Extract all person names from this text.",
+    "Write a Python function to merge two sorted arrays.",
+    "Analyze the sentiment of this customer review.",
+    "Explain quantum computing to a 10 year old.",
+    "Debug this React useEffect hook.",
+    "Generate a SQL query to find top customers by revenue.",
+    "Write unit tests for this authentication module.",
+]
+RESPONSES = [
+    "The meaning of life is to find purpose and joy.",
+    "Here are 3 key takeaways from the report...",
+    "こんにちは世界 (Konnichiwa Sekai)",
+    "Found entities: John Smith, Jane Doe, Acme Corp.",
+    "def merge_sorted(a, b): ...",
+    "Sentiment: Positive (confidence: 0.92)",
+    "Think of quantum computing like a magic coin that can be heads AND tails at the same time...",
+    "The issue is a missing dependency array in your useEffect...",
+    "SELECT customer_id, SUM(revenue) FROM orders GROUP BY customer_id ORDER BY 2 DESC LIMIT 10;",
+    "Here are 5 test cases covering login, logout, token refresh, invalid credentials, and rate limiting.",
+]
+
+NUM_LOGS = 120
+RPC_URL = f"{SUPABASE_URL.rstrip('/')}/rest/v1/rpc/ingest_log"
+
+headers = {
+    "Content-Type": "application/json",
+    "apikey": SUPABASE_ANON,
+    "Authorization": f"Bearer {SUPABASE_ANON}",
+    "x-api-key": api_key,
+}
+
+now = datetime.utcnow()
+success = 0
+fail = 0
+
+print(f"\nSending {NUM_LOGS} log entries spread across the last 7 days...\n")
+
+for i in range(NUM_LOGS):
+    model = random.choice(MODELS)
+
+    # Spread timestamps across the last 7 days with some hour clustering
+    hours_ago = random.uniform(0, 168)  # 7 days = 168 hours
+    # Cluster more requests during business hours (9-17)
+    if random.random() < 0.6:
+        hour_of_day = random.randint(9, 17)
+        day_offset = random.randint(0, 6)
+        ts = now - timedelta(days=day_offset, hours=now.hour - hour_of_day, minutes=random.randint(0, 59))
+    else:
+        ts = now - timedelta(hours=hours_ago)
+
+    timestamp_epoch = ts.timestamp()
+
+    prompt_tokens = random.randint(50, 2000)
+    completion_tokens = random.randint(20, 1500)
+    latency_ms = max(80, model["avg_latency"] + random.gauss(0, model["avg_latency"] * 0.3))
+    cost = (prompt_tokens / 1_000_000) * model["input_rate"] + (completion_tokens / 1_000_000) * model["output_rate"]
+
+    # 5% error rate
+    status = "error" if random.random() < 0.05 else "success"
+
+    payload = {
+        "project_id": "sdk-test",
+        "model": model["name"],
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "latency_ms": round(latency_ms, 1),
+        "cost": round(cost, 6),
+        "prompt": random.choice(PROMPTS),
+        "response": random.choice(RESPONSES) if status == "success" else "Error: rate limit exceeded",
+        "function_name": random.choice(FUNCTIONS),
+        "user_id": random.choice(USERS),
+        "session_id": f"sess_{random.randint(1000, 9999)}",
+        "trace_id": f"trace_{random.randint(10000, 99999)}",
+    }
+
+    try:
+        r = requests.post(RPC_URL, json={"payload": payload}, headers=headers, timeout=5)
+        if r.status_code == 200:
+            success += 1
+        else:
+            fail += 1
+            if fail <= 3:
+                print(f"  ⚠ [{i+1}] HTTP {r.status_code}: {r.text[:120]}")
+    except Exception as e:
+        fail += 1
+        if fail <= 3:
+            print(f"  ⚠ [{i+1}] {e}")
+
+    # Progress
+    pct = int((i + 1) / NUM_LOGS * 40)
+    bar = "█" * pct + "░" * (40 - pct)
+    print(f"\r  [{bar}] {i+1}/{NUM_LOGS}  ✓{success} ✗{fail}", end="", flush=True)
+
+print(f"\n\n{'=' * 55}")
+print(f"  Done! {success} logs ingested, {fail} failed.")
+print(f"{'=' * 55}")
+print(f"\n  → Open http://localhost:5173")
+print(f"  → Select project 'sdk-test' (top-right dropdown)")
+print(f"  → Click the 'Analytics' tab")
+print(f"  → You should see all charts fully populated!\n")

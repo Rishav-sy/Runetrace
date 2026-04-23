@@ -23,3 +23,13 @@ output "get_logs_lambda_arn" {
   description = "GetLogs Lambda function ARN"
   value       = aws_lambda_function.get_logs.arn
 }
+
+output "cognito_user_pool_id" {
+  description = "The ID of the Cognito User Pool"
+  value       = aws_cognito_user_pool.pool.id
+}
+
+output "cognito_app_client_id" {
+  description = "The ID of the Cognito App Client"
+  value       = aws_cognito_user_pool_client.client.id
+}

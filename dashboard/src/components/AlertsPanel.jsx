@@ -1,18 +1,32 @@
 import { useState, useMemo } from 'react';
-import { AlertTriangle, DollarSign, Zap, Bell, BellOff, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Bell, BellOff, DollarSign, Percent, Clock, Activity } from 'lucide-react';
 
 const DEFAULT_ALERTS = [
-  { id: 'daily_cost', name: 'Daily Cost Limit', metric: 'daily_cost', threshold: 1.00, enabled: true },
-  { id: 'monthly_cost', name: 'Monthly Cost Limit', metric: 'monthly_cost', threshold: 25.00, enabled: true },
-  { id: 'error_rate', name: 'Error Rate Threshold', metric: 'error_rate', threshold: 5, enabled: true },
-  { id: 'latency_p95', name: 'P95 Latency Threshold', metric: 'latency_p95', threshold: 3000, enabled: false },
-  { id: 'rpm_spike', name: 'RPM Spike Alert', metric: 'rpm', threshold: 100, enabled: false },
+  { id: 'daily_cost', name: 'Daily Cost', metric: 'daily_cost', threshold: 1.00, enabled: true, icon: 'dollar', unit: '$' },
+  { id: 'monthly_cost', name: 'Monthly Budget', metric: 'monthly_cost', threshold: 25.00, enabled: true, icon: 'dollar', unit: '$' },
+  { id: 'error_rate', name: 'Error Rate', metric: 'error_rate', threshold: 5, enabled: true, icon: 'percent', unit: '%' },
+  { id: 'latency_p95', name: 'P95 Latency', metric: 'latency_p95', threshold: 3000, enabled: false, icon: 'clock', unit: 'ms' },
+  { id: 'rpm_spike', name: 'RPM Spike', metric: 'rpm', threshold: 100, enabled: false, icon: 'activity', unit: '/min' },
 ];
+
+const ICONS = {
+  dollar: DollarSign,
+  percent: Percent,
+  clock: Clock,
+  activity: Activity,
+};
 
 export default function AlertsPanel({ logs }) {
   const [alerts, setAlerts] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('rune_alerts')) || DEFAULT_ALERTS; }
-    catch { return DEFAULT_ALERTS; }
+    try {
+      const saved = JSON.parse(localStorage.getItem('rune_alerts'));
+      // Merge saved values with defaults to pick up any new icon/unit fields
+      if (saved) return DEFAULT_ALERTS.map(d => {
+        const s = saved.find(x => x.id === d.id);
+        return s ? { ...d, threshold: s.threshold, enabled: s.enabled } : d;
+      });
+      return DEFAULT_ALERTS;
+    } catch { return DEFAULT_ALERTS; }
   });
 
   const metrics = useMemo(() => {
@@ -27,38 +41,29 @@ export default function AlertsPanel({ logs }) {
     const latencies = logs.map(l => l.latency_ms || 0).sort((a, b) => a - b);
     const p95 = latencies[Math.floor(latencies.length * 0.95)] || 0;
 
-    // RPM (last hour)
     const lastHour = logs.filter(l => (now - (l.timestamp || 0)) < 3600);
     const rpm = lastHour.length / 60;
 
     return { daily_cost: dailyCost, monthly_cost: monthlyCost, error_rate: errorRate, latency_p95: p95, rpm };
   }, [logs]);
 
-  const getMetricValue = (metric) => metrics[metric] || 0;
+  const getVal = (metric) => metrics[metric] || 0;
 
-  const getMetricLabel = (metric) => ({
-    daily_cost: 'Daily Cost',
-    monthly_cost: 'Monthly Cost',
-    error_rate: 'Error Rate',
-    latency_p95: 'P95 Latency',
-    rpm: 'RPM',
-  })[metric] || metric;
-
-  const getMetricDisplay = (metric, value) => ({
+  const fmtVal = (metric, value) => ({
     daily_cost: `$${value.toFixed(4)}`,
-    monthly_cost: `$${value.toFixed(4)}`,
+    monthly_cost: `$${value.toFixed(2)}`,
     error_rate: `${value.toFixed(1)}%`,
     latency_p95: `${value.toFixed(0)}ms`,
     rpm: `${value.toFixed(1)}/min`,
-  })[metric] || value;
+  })[metric] || String(value);
 
-  const getThresholdDisplay = (metric, threshold) => ({
+  const fmtThreshold = (metric, threshold) => ({
     daily_cost: `$${threshold.toFixed(2)}`,
     monthly_cost: `$${threshold.toFixed(2)}`,
     error_rate: `${threshold}%`,
     latency_p95: `${threshold}ms`,
     rpm: `${threshold}/min`,
-  })[metric] || threshold;
+  })[metric] || String(threshold);
 
   const toggleAlert = (id) => {
     const next = alerts.map(a => a.id === id ? { ...a, enabled: !a.enabled } : a);
@@ -72,87 +77,152 @@ export default function AlertsPanel({ logs }) {
     localStorage.setItem('rune_alerts', JSON.stringify(next));
   };
 
-  const triggered = alerts.filter(a => a.enabled && getMetricValue(a.metric) >= a.threshold);
+  const triggered = alerts.filter(a => a.enabled && getVal(a.metric) >= a.threshold);
 
   return (
     <div className="panel">
-      <div className="panel-header">
+      <div className="panel-header" style={{ flexShrink: 0 }}>
         <span className="panel-title">Alerts & Budgets</span>
-        {triggered.length > 0 && (
-          <span className="alert-triggered-badge">
+        {triggered.length > 0 ? (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            fontSize: 10, fontWeight: 700, color: '#FF4444',
+            background: 'rgba(255,68,68,0.12)', padding: '2px 8px', borderRadius: 4,
+          }}>
             <AlertTriangle size={11} /> {triggered.length} triggered
+          </span>
+        ) : (
+          <span style={{
+            fontSize: 10, color: 'var(--green)', fontWeight: 600,
+            background: 'rgba(0,230,118,0.08)', padding: '2px 8px', borderRadius: 4,
+          }}>
+            All clear
           </span>
         )}
       </div>
 
-      {/* Triggered alerts */}
-      {triggered.length > 0 && (
-        <div className="alert-triggered-list">
-          {triggered.map(a => {
-            const val = getMetricValue(a.metric);
-            const pct = Math.min((val / a.threshold) * 100, 200);
-            return (
-              <div key={a.id} className="alert-triggered-card">
-                <AlertTriangle size={14} className="alert-icon" />
-                <div className="alert-triggered-info">
-                  <div className="alert-triggered-name">{a.name}</div>
-                  <div className="alert-triggered-detail">
-                    {getMetricDisplay(a.metric, val)} / {getThresholdDisplay(a.metric, a.threshold)}
-                    <span className="alert-pct" style={{ color: pct > 100 ? 'var(--red)' : 'var(--amber)' }}>
-                      ({pct.toFixed(0)}%)
-                    </span>
-                  </div>
-                </div>
-                <div className="alert-gauge-mini">
-                  <div className="alert-gauge-track">
-                    <div className="alert-gauge-fill" style={{
-                      width: `${Math.min(pct, 100)}%`,
-                      background: pct > 100 ? 'var(--red)' : pct > 80 ? 'var(--amber)' : 'var(--green)'
-                    }} />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* All alerts list */}
-      <div className="alert-config-list">
+      {/* Alert rows */}
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
         {alerts.map(a => {
-          const val = getMetricValue(a.metric);
+          const val = getVal(a.metric);
           const pct = a.threshold > 0 ? (val / a.threshold) * 100 : 0;
           const isOver = pct >= 100;
+          const isWarn = pct >= 80;
+          const Icon = ICONS[a.icon] || Activity;
+
+          const barColor = !a.enabled
+            ? 'rgba(255,255,255,0.08)'
+            : isOver ? '#FF4444'
+            : isWarn ? '#FFB300'
+            : '#C8FF00';
 
           return (
-            <div key={a.id} className={`alert-config-row ${a.enabled ? '' : 'disabled'}`}>
-              <button className="alert-toggle" onClick={() => toggleAlert(a.id)}>
-                {a.enabled ? <Bell size={13} /> : <BellOff size={13} />}
+            <div key={a.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '8px 10px', borderRadius: 8,
+              background: a.enabled && isOver ? 'rgba(255,68,68,0.06)' : 'transparent',
+              border: a.enabled && isOver ? '1px solid rgba(255,68,68,0.15)' : '1px solid transparent',
+              opacity: a.enabled ? 1 : 0.45,
+              transition: 'all 0.15s ease',
+            }}>
+              {/* Toggle */}
+              <button
+                onClick={() => toggleAlert(a.id)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: a.enabled ? 'var(--lime)' : 'var(--text-3)',
+                  padding: 0, display: 'flex', flexShrink: 0,
+                }}
+                title={a.enabled ? 'Disable alert' : 'Enable alert'}
+              >
+                {a.enabled ? <Bell size={14} /> : <BellOff size={14} />}
               </button>
-              <div className="alert-config-info">
-                <span className="alert-config-name">{a.name}</span>
-                <div className="alert-config-gauge">
-                  <div className="alert-gauge-track">
-                    <div className="alert-gauge-fill" style={{
-                      width: `${Math.min(pct, 100)}%`,
-                      background: !a.enabled ? 'var(--text-3)' : isOver ? 'var(--red)' : pct > 80 ? 'var(--amber)' : 'var(--lime)',
-                      opacity: a.enabled ? 1 : 0.3,
-                    }} />
-                  </div>
-                  <span className="alert-config-current">
-                    {getMetricDisplay(a.metric, val)}
+
+              {/* Icon */}
+              <div style={{
+                width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                background: 'rgba(255,255,255,0.04)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: a.enabled ? barColor : 'var(--text-3)',
+              }}>
+                <Icon size={14} />
+              </div>
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                  marginBottom: 4,
+                }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{a.name}</span>
+                  <span style={{
+                    fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 600,
+                    color: a.enabled ? (isOver ? '#FF4444' : isWarn ? '#FFB300' : 'var(--text-2)') : 'var(--text-3)',
+                  }}>
+                    {fmtVal(a.metric, val)}
+                    <span style={{ color: 'var(--text-3)', fontWeight: 400 }}> / {fmtThreshold(a.metric, a.threshold)}</span>
                   </span>
                 </div>
+
+                {/* Progress bar */}
+                <div style={{
+                  width: '100%', height: 4, background: 'rgba(255,255,255,0.06)',
+                  borderRadius: 2, overflow: 'hidden',
+                }}>
+                  <div style={{
+                    width: `${Math.min(pct, 100)}%`,
+                    height: '100%', borderRadius: 2,
+                    background: barColor,
+                    transition: 'width 0.4s ease, background 0.3s ease',
+                  }} />
+                </div>
               </div>
-              <div className="alert-threshold-input-wrap">
-                <input
-                  type="number"
-                  value={a.threshold}
-                  onChange={e => updateThreshold(a.id, e.target.value)}
-                  className="alert-threshold-input"
-                  step={a.metric.includes('cost') ? 0.5 : a.metric.includes('rate') ? 1 : 100}
-                />
-              </div>
+
+              {/* Threshold stepper */}
+              {(() => {
+                const step = a.metric.includes('cost') ? 0.5 : a.metric.includes('rate') ? 1 : 100;
+                return (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', flexShrink: 0,
+                    border: '1px solid var(--border)', borderRadius: 6,
+                    overflow: 'hidden', background: 'var(--bg-primary)',
+                  }}>
+                    <button
+                      onClick={() => updateThreshold(a.id, Math.max(0, a.threshold - step))}
+                      style={{
+                        background: 'none', border: 'none', color: 'var(--text-3)',
+                        cursor: 'pointer', padding: '4px 6px', fontSize: 12,
+                        lineHeight: 1, display: 'flex', alignItems: 'center',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
+                    >−</button>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={a.threshold}
+                      onChange={e => updateThreshold(a.id, e.target.value)}
+                      style={{
+                        width: 42, background: 'transparent',
+                        border: 'none', borderLeft: '1px solid var(--border)',
+                        borderRight: '1px solid var(--border)',
+                        color: 'var(--text)', fontSize: 10, fontFamily: 'var(--mono)',
+                        padding: '4px 2px', textAlign: 'center', outline: 'none',
+                      }}
+                    />
+                    <button
+                      onClick={() => updateThreshold(a.id, a.threshold + step)}
+                      style={{
+                        background: 'none', border: 'none', color: 'var(--text-3)',
+                        cursor: 'pointer', padding: '4px 6px', fontSize: 12,
+                        lineHeight: 1, display: 'flex', alignItems: 'center',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
+                    >+</button>
+                  </div>
+                );
+              })()}
             </div>
           );
         })}

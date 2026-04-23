@@ -30,7 +30,8 @@ import PromptLogTable from './components/PromptLogTable';
 import SettingsView from './components/SettingsView';
 import { SkeletonCard, SkeletonChart, SkeletonTable } from './components/Skeleton';
 import { RefreshCw, WifiOff, BarChart3, List, Filter as FilterIcon, GitBranch, Beaker, BarChart2, ChevronDown, FileText, Database, Settings } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { useAuth } from './components/AuthContext';
 import './App.css';
 
 const RANGES = [
@@ -49,7 +50,6 @@ const TABS = [
   { key: 'prompts', label: 'Prompts', icon: FileText },
   { key: 'datasets', label: 'Datasets', icon: Database },
   { key: 'playground', label: 'Playground', icon: Beaker },
-  { key: 'settings', label: 'Settings', icon: Settings },
 ];
 
 /* ── Fade animation ── */
@@ -68,8 +68,20 @@ function App() {
     catch { return ['default']; }
   });
   const [timeRange, setTimeRange] = useState('all');
-  const [tab, setTab] = useState('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'overview';
+  const setTab = (newTab) => {
+    setSearchParams(prev => {
+      prev.set('tab', newTab);
+      return prev;
+    });
+  };
   const [showProjectMenu, setShowProjectMenu] = useState(false);
+  
+  const { isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
+
+  // Open access to whichever project string is set
   const { logs, loading, error, hasMore, refetch, loadMore } = useLLMLogs(projectId, timeRange);
 
   const switchProject = (p) => {
@@ -112,6 +124,11 @@ function App() {
     setTab('logs');
   }, []);
 
+  const filterToTimeWindow = useCallback((day, hour, label) => {
+    setLogFilters({ timeWindow: { day, hour, label } });
+    setTab('logs');
+  }, []);
+
   const clearFilters = useCallback(() => {
     setLogFilters({});
   }, []);
@@ -120,7 +137,7 @@ function App() {
   const isLoading = loading && logs.length === 0;
 
   // Active filter indicator
-  const activeFilterLabel = logFilters.model || logFilters.function || (logFilters.status === 'error' ? 'Errors' : '');
+  const activeFilterLabel = logFilters.model || logFilters.function || (logFilters.status === 'error' ? 'Errors' : logFilters.timeWindow ? logFilters.timeWindow.label : '');
 
   return (
     <ErrorBoundary>
@@ -168,7 +185,10 @@ function App() {
 
           <div className="header-right">
             <div className="project-selector-wrap">
-              <button className="project-selector-btn" onClick={() => setShowProjectMenu(!showProjectMenu)}>
+              <button 
+                className="project-selector-btn" 
+                onClick={() => setShowProjectMenu(!showProjectMenu)}
+              >
                 <span className="project-dot" />
                 <span className="project-selector-name">{projectId}</span>
                 <ChevronDown size={12} />
@@ -201,19 +221,28 @@ function App() {
                     </div>
 
                     {/* Add new project */}
-                    <div className="project-menu-add" style={{ padding: '0 12px 12px', borderTop: 'none', marginTop: -4 }}>
+                    <div className="project-menu-add" style={{ padding: '8px 12px 12px', borderTop: '1px solid var(--border-dim)', marginTop: '4px' }}>
                       <button
                         className="project-add-btn"
-                        style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 6, background: 'rgba(255,255,255,0.05)', color: 'var(--text-2)' }}
+                        style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6, background: 'var(--bg-hover)', color: 'var(--text-2)', padding: '8px 0', borderRadius: '6px' }}
                         onClick={() => { setTab('settings'); setShowProjectMenu(false); }}
                       >
-                        <Settings size={14} /> Manage Projects
+                        <Settings size={13} /> Manage Projects
                       </button>
                     </div>
+
+                    {!isAuthenticated && (
+                      <div className="project-menu-tip" style={{ padding: '8px 12px', background: 'rgba(200,255,0,0.05)', borderTop: '1px solid var(--border-dim)', fontSize: '10px', color: 'var(--text-3)', lineHeight: 1.4 }}>
+                        <span style={{ color: 'var(--lime)', fontWeight: 600 }}>TIP:</span> Sign in to secure your project data with Enterprise Role-Based Access Control.
+                      </div>
+                    )}
                   </div>
                 </>
               )}
             </div>
+            <button onClick={() => setTab('settings')} className="btn-ghost" title="Settings">
+              <Settings size={13} style={{ color: tab === 'settings' ? 'var(--lime)' : 'inherit' }} />
+            </button>
             <button onClick={refetch} className="btn-ghost" disabled={loading} title="Refresh">
               <RefreshCw size={13} className={loading ? 'spin' : ''} />
             </button>
@@ -221,6 +250,16 @@ function App() {
               <div className="dot" />
               <span>{isConnected ? 'LIVE' : 'OFF'}</span>
             </div>
+            
+            {!isAuthenticated ? (
+              <div className="auth-buttons-nav">
+                <button className="btn-ghost" onClick={() => navigate('/login')} style={{ fontSize: 11, letterSpacing: '0.04em', fontWeight: 600 }}>SIGN IN</button>
+              </div>
+            ) : (
+              <button className="btn-ghost" onClick={logout} style={{ color: 'var(--r-text-dim)', fontSize: 12 }}>
+                Log Out
+              </button>
+            )}
           </div>
         </header>
 
@@ -239,18 +278,19 @@ function App() {
 
         {/* Main */}
         <main className="main-content">
-          {isLoading ? (
-            <div className="loading-state">
-              <div className="metrics-grid">
-                {[...Array(5)].map((_, i) => <SkeletonCard key={i} />)}
-              </div>
-              <div className="panel-grid-2"><SkeletonChart /><SkeletonChart /></div>
-              <SkeletonTable />
-            </div>
-          ) : (
-            <AnimatePresence mode="wait">
-              {tab === 'overview' ? (
-                <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+          <AnimatePresence mode="wait">
+            {isLoading && ['overview', 'analytics', 'logs', 'traces'].includes(tab) ? (
+              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                <div className="loading-state">
+                  <div className="metrics-grid">
+                    {[...Array(5)].map((_, i) => <SkeletonCard key={i} />)}
+                  </div>
+                  <div className="panel-grid-2"><SkeletonChart /><SkeletonChart /></div>
+                  <SkeletonTable />
+                </div>
+              </motion.div>
+            ) : tab === 'overview' ? (
+              <motion.div key={`overview-${projectId}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                   {/* Metrics */}
                   <MetricCards
                     logs={logs}
@@ -331,7 +371,7 @@ function App() {
                       <ThroughputChart logs={logs} timeRange={timeRange} />
                     </motion.div>
                     <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={1}>
-                      <LatencyHeatmap logs={logs} />
+                      <LatencyHeatmap logs={logs} onFilterTime={filterToTimeWindow} />
                     </motion.div>
                   </div>
 
@@ -408,7 +448,6 @@ function App() {
                 </motion.div>
               ) : null}
             </AnimatePresence>
-          )}
         </main>
       </div>
     </ErrorBoundary>

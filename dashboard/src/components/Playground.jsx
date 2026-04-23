@@ -427,9 +427,24 @@ export default function Playground() {
           </div>
           <div className="pg-setting">
             <label>Max Tokens</label>
-            <input type="number" value={maxTokens}
-              onChange={e => setMaxTokens(parseInt(e.target.value) || 1024)}
-              className="pg-number-input" min={1} max={131072} />
+            <div className="rune-stepper">
+              <button 
+                className="rune-stepper-btn"
+                onClick={() => setMaxTokens(Math.max(1, maxTokens - 256))}
+              >−</button>
+              <input
+                type="number"
+                value={maxTokens}
+                onChange={e => setMaxTokens(parseInt(e.target.value) || 1024)}
+                className="rune-stepper-input"
+                style={{ width: '60px' }}
+                min={1} max={131072}
+              />
+              <button 
+                className="rune-stepper-btn"
+                onClick={() => setMaxTokens(Math.min(131072, maxTokens + 256))}
+              >+</button>
+            </div>
           </div>
           <div className="pg-setting">
             <label>Top-P: {topP.toFixed(1)}</label>

@@ -27,6 +27,7 @@ _config = {
     "api_url": os.environ.get("RUNETRACE_API_URL", ""),
     "project_id": os.environ.get("RUNETRACE_PROJECT_ID", "default"),
     "api_key": os.environ.get("RUNETRACE_API_KEY", ""),
+    "anon_key": os.environ.get("RUNETRACE_ANON_KEY", ""),
     "batch_size": 10,
     "flush_interval": 5.0,  # seconds
     "max_retries": 3,
@@ -45,6 +46,7 @@ def configure(
     api_url: str = None,
     project_id: str = None,
     api_key: str = None,
+    anon_key: str = None,
     batch_size: int = None,
     flush_interval: float = None,
     max_retries: int = None,
@@ -61,6 +63,7 @@ def configure(
         api_url: Your Runetrace API Gateway URL
         project_id: Project identifier for grouping logs (default: "default")
         api_key: API key for authenticating with the ingest endpoint
+        anon_key: Supabase Anon Key for REST API routing
         batch_size: Number of logs to batch before sending (default: 10)
         flush_interval: Seconds between automatic flushes (default: 5.0)
         max_retries: Max retry attempts on failure (default: 3)
@@ -76,6 +79,8 @@ def configure(
         _config["project_id"] = project_id
     if api_key is not None:
         _config["api_key"] = api_key
+    if anon_key is not None:
+        _config["anon_key"] = anon_key
     if batch_size is not None:
         _config["batch_size"] = max(1, batch_size)
     if flush_interval is not None:
@@ -102,14 +107,24 @@ def configure(
 def _send_with_retry(payload: dict, retries: int = None):
     """Send a single payload to the API with exponential backoff retry."""
     max_retries = retries if retries is not None else _config["max_retries"]
-    url = f"{_config['api_url']}/ingest"
-    headers = {"Content-Type": "application/json"}
+    
+    url = _config['api_url']
+    if not url.endswith('/rpc/ingest_log'):
+        url = f"{url.rstrip('/')}/rest/v1/rpc/ingest_log"
+        
+    headers = {
+        "Content-Type": "application/json"
+    }
     if _config["api_key"]:
         headers["x-api-key"] = _config["api_key"]
+    if _config.get("anon_key"):
+        headers["apikey"] = _config["anon_key"]
+        headers["Authorization"] = f"Bearer {_config['anon_key']}"
 
     for attempt in range(max_retries + 1):
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=5)
+            # Wrap payload in 'payload' key so PostgREST maps it explicitly to the 'payload' function argument
+            response = requests.post(url, json={"payload": payload}, headers=headers, timeout=5)
             if response.status_code == 200:
                 return True
             if response.status_code < 500:

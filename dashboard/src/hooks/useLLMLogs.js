@@ -1,67 +1,104 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'https://efy27iqiuf.execute-api.us-east-1.amazonaws.com';
+import { supabase } from '../lib/auth';
 
 const TIME_RANGES = {
-  '1h': () => Date.now() / 1000 - 3600,
-  '24h': () => Date.now() / 1000 - 86400,
-  '7d': () => Date.now() / 1000 - 604800,
-  '30d': () => Date.now() / 1000 - 2592000,
+  '1h': () => new Date(Date.now() - 3600000).toISOString(),
+  '24h': () => new Date(Date.now() - 86400000).toISOString(),
+  '7d': () => new Date(Date.now() - 604800000).toISOString(),
+  '30d': () => new Date(Date.now() - 2592000000).toISOString(),
   'all': () => null,
 };
 
-export function useLLMLogs(projectId = 'live-demo', timeRange = 'all') {
+export function useLLMLogs(projectId = 'default', timeRange = 'all') {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hasMore, setHasMore] = useState(false);
-  const [lastKey, setLastKey] = useState(null);
+  const [offset, setOffset] = useState(0);
   const debounceRef = useRef(null);
+
+  const PAGE_SIZE = 10000;
 
   const fetchLogs = useCallback(async (append = false) => {
     try {
       if (!append) setLoading(true);
 
-      const params = { project_id: projectId, limit: 100 };
+      let allData = [];
+      let currentOffset = append ? offset : 0;
+      let keepFetching = true;
+      let totalCount = 0;
 
-      // Time range
-      const getStartTime = TIME_RANGES[timeRange];
-      if (getStartTime) {
-        const start = getStartTime();
-        if (start) params.start_time = Math.floor(start);
+      while (keepFetching) {
+        let query = supabase
+          .from('request_logs')
+          .select('*', { count: 'exact' })
+          .eq('project_id', projectId)
+          .order('created_at', { ascending: false })
+          .range(currentOffset, currentOffset + PAGE_SIZE - 1);
+
+        // Apply time filter
+        const getStartTime = TIME_RANGES[timeRange];
+        if (getStartTime) {
+          const startTimeStr = getStartTime();
+          if (startTimeStr) {
+            query = query.gte('created_at', startTimeStr);
+          }
+        }
+
+        const { data, error, count } = await query;
+
+        if (error) throw error;
+
+        totalCount = count;
+        
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          currentOffset += data.length;
+          
+          // Supabase has a hard 1000 row limit per request by default.
+          // If we got fewer rows than we asked for, we've hit the end.
+          if (data.length < PAGE_SIZE && data.length < 1000) {
+            keepFetching = false;
+          }
+        } else {
+          keepFetching = false;
+        }
       }
 
-      // Pagination — only append when loading more
-      if (append && lastKey) {
-        params.last_key = lastKey;
-      }
-
-      const response = await axios.get(`${API_URL}/logs`, { params });
-      const data = response.data;
+      // Map created_at to epoch-seconds timestamp for chart components
+      const mapped = allData.map(row => ({
+        ...row,
+        timestamp: row.created_at ? new Date(row.created_at).getTime() / 1000 : 0,
+        status: row.status || 'success',
+      }));
 
       if (append) {
-        setLogs(prev => [...prev, ...(data.logs || [])]);
+        setLogs(prev => [...prev, ...mapped]);
       } else {
-        setLogs(data.logs || []);
+        setLogs(mapped);
       }
 
-      setHasMore(data.has_more || false);
-      setLastKey(data.last_key || null);
+      setOffset(currentOffset);
+      setHasMore(totalCount > currentOffset);
       setError(null);
     } catch (err) {
+      console.error("Runetrace Data Fetch Error:", err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [projectId, timeRange, lastKey]);
+  }, [projectId, timeRange, offset]);
 
   // Debounced fetch when projectId or timeRange changes
   useEffect(() => {
+    // Instantly wipe old data to trigger loading skeleton
+    setLogs([]);
+    setLoading(true);
+
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     debounceRef.current = setTimeout(() => {
-      setLastKey(null);
+      setOffset(0);
       fetchLogs(false);
     }, 300);
 
@@ -70,15 +107,9 @@ export function useLLMLogs(projectId = 'live-demo', timeRange = 'all') {
     };
   }, [projectId, timeRange]);
 
-  // Auto-refresh every 30s
-  useEffect(() => {
-    const interval = setInterval(() => fetchLogs(false), 30000);
-    return () => clearInterval(interval);
-  }, [projectId, timeRange]);
-
   const loadMore = useCallback(() => {
-    if (hasMore && lastKey) fetchLogs(true);
-  }, [hasMore, lastKey, fetchLogs]);
+    if (hasMore) fetchLogs(true);
+  }, [hasMore, fetchLogs]);
 
   return { logs, loading, error, hasMore, refetch: () => fetchLogs(false), loadMore };
 }
