@@ -1,0 +1,50 @@
+{
+  "name": "runetrace",
+  "version": "0.1.0",
+  "description": "Open-source LLM observability SDK. Track cost, latency, and behavior of your AI calls.",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "llm",
+    "observability",
+    "monitoring",
+    "openai",
+    "anthropic",
+    "gemini",
+    "cost",
+    "tracking",
+    "tracing",
+    "ai"
+  ],
+  "author": "Rishav",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rishav-sy/Runetrace.git",
+    "directory": "sdk-node"
+  },
+  "homepage": "https://github.com/Rishav-sy/Runetrace",
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  }
+}

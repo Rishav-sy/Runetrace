@@ -19,6 +19,8 @@ build/
 # Node
 dashboard/node_modules/
 dashboard/dist/
+sdk-node/node_modules/
+sdk-node/dist/
 
 # IDE
 .vscode/

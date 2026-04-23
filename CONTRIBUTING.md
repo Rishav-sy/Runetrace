@@ -7,7 +7,7 @@ First off, thanks for taking the time to contribute! 🚀
 ### Reporting Bugs
 - Open an issue with a clear title and description
 - Include steps to reproduce the bug
-- Include your environment (OS, Python version, etc.)
+- Include your environment (OS, Python/Node version, etc.)
 
 ### Suggesting Features
 - Open an issue with the `[Feature]` prefix
@@ -26,22 +26,30 @@ First off, thanks for taking the time to contribute! 🚀
 
 ```bash
 # Clone the repo
-git clone https://github.com/rishavsy/runetrace.git
-cd runetrace
-
-# Backend (requires AWS credentials)
-cd terraform && terraform init && terraform apply
-
-# SDK
-cd sdk && pip install -e .
+git clone https://github.com/Rishav-sy/Runetrace.git
+cd Runetrace
 
 # Dashboard
-cd dashboard && npm install && npm run dev
+cd dashboard && npm install
+cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
+npm run dev
+
+# Python SDK (editable install)
+cd sdk && pip install -e .
+
+# Node.js SDK
+cd sdk-node && npm install && npm run build
 ```
+
+### Database Setup
+1. Create a free [Supabase](https://supabase.com) project
+2. Run `dashboard/supabase_schema.sql` in the SQL Editor
+3. Run `dashboard/supabase_requests.sql` in the SQL Editor
 
 ### Areas Where Help is Needed
 - 🧩 **SDK:** Support for more LLM providers (Cohere, AI21, etc.)
-- 📊 **Dashboard:** More chart types (latency over time, token distribution)
+- 📊 **Dashboard:** More chart types and visualizations
 - 🧪 **Testing:** More comprehensive test coverage
 - 📖 **Docs:** Better documentation and examples
 - 🌍 **i18n:** Internationalization support
