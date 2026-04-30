@@ -42,6 +42,18 @@ Runetrace ships with a premium, Grafana-inspired dark dashboard:
 | **Prompts** | Prompt template management with version history |
 | **Playground** | Multi-model prompt testing with custom system prompts and token controls |
 
+<p align="center">
+  <img src="docs/screenshots/overview.png" alt="Runetrace Overview" width="800" />
+  <br />
+  <em>Overview — Real-time metrics, cost breakdown, and call volume</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/analytics.png" alt="Runetrace Analytics" width="800" />
+  <br />
+  <em>Analytics — Error analysis, latency percentiles, cost forecast, and model distribution</em>
+</p>
+
 **Interactive features:** Click any chart element to filter logs. Click any log row to expand full prompt/response details. Everything cross-links.
 
 ---
